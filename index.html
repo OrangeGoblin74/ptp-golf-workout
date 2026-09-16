@@ -11,7 +11,6 @@
 <link id="dynamic-apple-touch-icon" rel="apple-touch-icon" href="">
 
 <script>
-  // Dynamically render custom SVG design to high-res PNG canvas for iOS Safari
   (function() {
     const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
       <rect width="512" height="512" rx="115" fill="#121212"/>
@@ -48,13 +47,14 @@
   })();
 </script>
 
-<title>PTP Golf Workout Tracker</title>
+<title>PTP Golf Workout Tracker V2</title>
 <style>
   :root {
     --bg-color: #121212;
     --card-bg: #1e1e1e;
     --accent: #2e7d32;
     --accent-light: #4caf50;
+    --gold: #ffb300;
     --text-main: #ffffff;
     --text-sub: #b0b0b0;
     --border: #333333;
@@ -167,6 +167,7 @@
 
   .badge-door { background: #1565c0; color: white; }
   .badge-platform { background: #2e7d32; color: white; }
+  .badge-pr { background: var(--gold); color: #000; font-weight: bold; margin-left: 4px; }
 
   .ex-meta {
     font-size: 11px;
@@ -190,6 +191,13 @@
     color: #d0d0d0;
     border-radius: 0 4px 4px 0;
     margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .pr-tag {
+    color: var(--gold);
+    font-weight: bold;
   }
 
   .set-row {
@@ -258,7 +266,6 @@
     color: #888;
   }
 
-  /* History Tab Styles */
   .history-card {
     background: var(--card-bg);
     border-radius: 10px;
@@ -283,7 +290,6 @@
     border-bottom: 1px solid #2a2a2a;
   }
 
-  /* Timer Bar */
   .timer-banner {
     position: fixed;
     bottom: 0;
@@ -315,17 +321,24 @@
     margin-left: 4px;
   }
 
-  .export-btn {
-    width: 100%;
+  .action-btn-group {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .export-btn, .backup-btn {
+    flex: 1;
     background: #333;
     color: white;
     border: 1px solid var(--border);
     padding: 10px;
     border-radius: 8px;
     font-weight: bold;
-    font-size: 13px;
-    margin-top: 14px;
+    font-size: 12px;
   }
+
+  #file-input { display: none; }
 </style>
 </head>
 <body>
@@ -370,7 +383,12 @@
 
 <div id="history-view" style="display:none;">
   <div id="history-container"></div>
-  <button class="export-btn" onclick="exportCSV()">Export All History to CSV</button>
+  <div class="action-btn-group">
+    <button class="export-btn" onclick="exportCSV()">Export CSV</button>
+    <button class="backup-btn" onclick="exportJSON()">Backup JSON</button>
+    <button class="backup-btn" onclick="document.getElementById('file-input').click()">Restore</button>
+  </div>
+  <input type="file" id="file-input" accept=".json" onchange="importJSON(event)">
 </div>
 
 <div class="timer-banner" id="timer-banner" style="display:none;">
@@ -452,15 +470,27 @@ function getHistory() {
   return JSON.parse(localStorage.getItem('ptp_workout_history') || '[]');
 }
 
+function getMaxWeightPR(exName) {
+  const history = getHistory();
+  const entries = history.filter(h => h.exercise === exName);
+  if (!entries.length) return 0;
+  return Math.max(...entries.map(e => parseFloat(e.weight || 0)));
+}
+
 function getLastPerformance(exName, setNum) {
   const history = getHistory();
   const lastEntry = [...history].reverse().find(h => h.exercise === exName && h.setNum == setNum);
-  if (!lastEntry) return "First Session";
+  const pr = getMaxWeightPR(exName);
+  
+  if (!lastEntry) return { text: "First Session", pr };
   if (exName === "Plank Finisher") {
-    return `Last (${lastEntry.date}): ${lastEntry.reps} secs`;
+    return { text: `Last (${lastEntry.date}): ${lastEntry.reps} secs`, pr };
   }
   const bandsUsed = [lastEntry.b1, lastEntry.b2, lastEntry.b3, lastEntry.b4].filter(b => b && b !== "None").join(" + ");
-  return `Last (${lastEntry.date}): ${bandsUsed || 'None'} @ ${lastEntry.reps} reps (${lastEntry.weight}kg)`;
+  return { 
+    text: `Last (${lastEntry.date}): ${bandsUsed || 'None'} @ ${lastEntry.reps} reps (${lastEntry.weight}kg)`, 
+    pr 
+  };
 }
 
 function renderExercises() {
@@ -474,9 +504,14 @@ function renderExercises() {
 
     let setsHtml = '';
     for (let setNum = 1; setNum <= 3; setNum++) {
-      const lastText = getLastPerformance(ex.name, setNum);
+      const { text, pr } = getLastPerformance(ex.name, setNum);
+      const prText = pr > 0 ? `<span class="pr-tag">PR: ${pr}kg</span>` : '';
+      
       setsHtml += `
-        <div class="last-time-box">${lastText}</div>
+        <div class="last-time-box">
+          <span>${text}</span>
+          ${prText}
+        </div>
         <div class="set-row" id="row-${exIdx}-${setNum}">
           <div class="set-num">S${setNum}</div>
           <div class="band-grid">
@@ -528,6 +563,19 @@ function recalcRow(exIdx, setNum) {
   document.getElementById(`wt-${exIdx}-${setNum}`).innerText = totalWt.toFixed(1) + ' kg';
 }
 
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.3);
+  } catch(e){}
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+}
+
 function logSet(exName, exIdx, setNum, mult, isPlank) {
   const date = document.getElementById('session-date').value;
   const readiness = document.getElementById('session-readiness').value;
@@ -544,6 +592,9 @@ function logSet(exName, exIdx, setNum, mult, isPlank) {
     weight = ((BANDS[b1] + BANDS[b2] + BANDS[b3] + BANDS[b4]) * mult).toFixed(1);
   }
 
+  const currentMax = getMaxWeightPR(exName);
+  const isPR = parseFloat(weight) > currentMax && !isPlank;
+
   const logEntry = { date, day: currentTab, readiness, exercise: exName, setNum, b1, b2, b3, b4, reps, weight, kcal, hr };
 
   const history = getHistory();
@@ -552,7 +603,7 @@ function logSet(exName, exIdx, setNum, mult, isPlank) {
 
   const btn = document.getElementById(`btn-${exIdx}-${setNum}`);
   btn.classList.add('logged');
-  btn.innerText = '✓';
+  btn.innerText = isPR ? '🏆 PR!' : '✓';
 
   startRestTimer(30);
 }
@@ -614,7 +665,10 @@ function startRestTimer(seconds) {
   restTimer = setInterval(() => {
     timerSeconds--;
     updateTimerDisplay();
-    if (timerSeconds <= 0) stopTimer();
+    if (timerSeconds <= 0) {
+      playBeep();
+      stopTimer();
+    }
   }, 1000);
 }
 
@@ -647,6 +701,38 @@ function exportCSV() {
   a.setAttribute('href', url);
   a.setAttribute('download', `PTP_Workout_History_${new Date().toISOString().split('T')[0]}.csv`);
   a.click();
+}
+
+function exportJSON() {
+  const history = getHistory();
+  const blob = new Blob([JSON.stringify(history, null, 2)], { type: 'application/json' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.setAttribute('href', url);
+  a.setAttribute('download', `PTP_Workout_Backup_${new Date().toISOString().split('T')[0]}.json`);
+  a.click();
+}
+
+function importJSON(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      const data = JSON.parse(evt.target.result);
+      if (Array.isArray(data)) {
+        localStorage.setItem('ptp_workout_history', JSON.stringify(data));
+        alert('History restored successfully!');
+        if (currentTab === 'History') renderHistory();
+      } else {
+        alert('Invalid backup file format.');
+      }
+    } catch(err) {
+      alert('Error reading JSON file.');
+    }
+  };
+  reader.readAsText(file);
 }
 
 renderExercises();

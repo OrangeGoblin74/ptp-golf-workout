@@ -7,10 +7,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PTP Golf Workout">
 
-<!-- Dynamic PNG Icon Link target -->
 <link id="dynamic-apple-touch-icon" rel="apple-touch-icon" href="">
 
-<!-- Firebase SDKs (v10.8.0 Web Modules via CDN) -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
   import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -53,14 +51,14 @@
   window.query = query;
   window.orderBy = orderBy;
 
-  // Seamless Background Anonymous Auth
   onAuthStateChanged(auth, (user) => {
     if (user) {
       console.log("Device authenticated securely:", user.uid);
       initFirestoreListener();
     } else {
       signInAnonymously(auth).catch((error) => {
-        console.error("Authentication failed:", error);
+        console.error("Auth failed, operating in offline fallback mode:", error);
+        initFirestoreListener();
       });
     }
   });
@@ -72,9 +70,13 @@
       snapshot.forEach((d) => {
         cloudHistory.push({ id: d.id, ...d.data() });
       });
-      localStorage.setItem('ptp_workout_history', JSON.stringify(cloudHistory));
-      if (window.currentParentTab === 'History') window.renderHistory();
-      if (window.currentParentTab === 'Analytics') window.renderAnalytics();
+      if (cloudHistory.length > 0) {
+        localStorage.setItem('ptp_workout_history', JSON.stringify(cloudHistory));
+        if (window.currentParentTab === 'History') window.renderHistory();
+        if (window.currentParentTab === 'Analytics') window.renderAnalytics();
+      }
+    }, (error) => {
+      console.warn("Firestore listener restricted, using local storage:", error);
     });
   }
 </script>
@@ -116,7 +118,7 @@
   })();
 </script>
 
-<title>PTP Golf Workout Tracker V4.2</title>
+<title>PTP Golf Workout Tracker V5.1</title>
 <style>
   :root {
     --bg-color: #121212;
@@ -140,361 +142,56 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  h1 {
-    font-size: 18px;
-    text-align: center;
-    color: var(--accent-light);
-    margin: 4px 0 12px 0;
-  }
-
-  .parent-tabs {
-    display: flex;
-    background: #000000;
-    border-radius: 12px;
-    padding: 3px;
-    margin-bottom: 10px;
-    border: 1px solid var(--border);
-  }
-
-  .parent-btn {
-    flex: 1;
-    padding: 10px 0;
-    border: none;
-    background: transparent;
-    color: var(--text-sub);
-    font-weight: 700;
-    font-size: 13px;
-    border-radius: 9px;
-  }
-
-  .parent-btn.active {
-    background: var(--accent);
-    color: white;
-  }
-
-  .sub-tabs {
-    display: flex;
-    background: var(--card-bg);
-    padding: 3px;
-    border-radius: 10px;
-    margin-bottom: 12px;
-    border: 1px solid var(--border);
-    overflow-x: auto;
-  }
-
-  .sub-btn {
-    flex: 1;
-    min-width: 60px;
-    padding: 7px 2px;
-    border: none;
-    background: transparent;
-    color: var(--text-sub);
-    font-weight: 600;
-    font-size: 11px;
-    border-radius: 6px;
-    white-space: nowrap;
-  }
-
-  .sub-btn.active {
-    background: #333333;
-    color: var(--accent-light);
-    font-weight: 700;
-  }
-
-  .session-meta {
-    background: var(--card-bg);
-    padding: 12px;
-    border-radius: 12px;
-    margin-bottom: 12px;
-    border: 1px solid var(--border);
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  .input-group {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .input-group label {
-    font-size: 10px;
-    color: var(--text-sub);
-    margin-bottom: 3px;
-    text-transform: uppercase;
-  }
-
-  .input-group input, .input-group select {
-    background: #2a2a2a;
-    border: 1px solid var(--border);
-    color: white;
-    padding: 6px 8px;
-    border-radius: 6px;
-    font-size: 13px;
-  }
-
-  .exercise-card, .analytics-card {
-    background: var(--card-bg);
-    border-radius: 12px;
-    padding: 12px;
-    margin-bottom: 12px;
-    border: 1px solid var(--border);
-  }
-
-  .ex-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 4px;
-  }
-
-  .ex-title {
-    font-size: 15px;
-    font-weight: 700;
-    color: white;
-  }
-
-  .ex-badge {
-    font-size: 9px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 600;
-    text-transform: uppercase;
-  }
-
+  h1 { font-size: 18px; text-align: center; color: var(--accent-light); margin: 4px 0 12px 0; }
+  .parent-tabs { display: flex; background: #000000; border-radius: 12px; padding: 3px; margin-bottom: 10px; border: 1px solid var(--border); }
+  .parent-btn { flex: 1; padding: 10px 0; border: none; background: transparent; color: var(--text-sub); font-weight: 700; font-size: 13px; border-radius: 9px; }
+  .parent-btn.active { background: var(--accent); color: white; }
+  .sub-tabs { display: flex; background: var(--card-bg); padding: 3px; border-radius: 10px; margin-bottom: 12px; border: 1px solid var(--border); overflow-x: auto; }
+  .sub-btn { flex: 1; min-width: 60px; padding: 7px 2px; border: none; background: transparent; color: var(--text-sub); font-weight: 600; font-size: 11px; border-radius: 6px; white-space: nowrap; }
+  .sub-btn.active { background: #333333; color: var(--accent-light); font-weight: 700; }
+  .session-meta { background: var(--card-bg); padding: 12px; border-radius: 12px; margin-bottom: 12px; border: 1px solid var(--border); display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .input-group { display: flex; flex-direction: column; }
+  .input-group label { font-size: 10px; color: var(--text-sub); margin-bottom: 3px; text-transform: uppercase; }
+  .input-group input, .input-group select { background: #2a2a2a; border: 1px solid var(--border); color: white; padding: 6px 8px; border-radius: 6px; font-size: 13px; }
+  .exercise-card, .analytics-card { background: var(--card-bg); border-radius: 12px; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border); }
+  .ex-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+  .ex-title { font-size: 15px; font-weight: 700; color: white; }
+  .ex-badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
   .badge-door { background: var(--blue); color: white; }
   .badge-platform { background: var(--accent); color: white; }
   .badge-cardio { background: #d32f2f; color: white; }
-
-  .ex-meta {
-    font-size: 11px;
-    color: var(--accent-light);
-    margin-bottom: 4px;
-  }
-
-  .ex-desc {
-    font-size: 11px;
-    color: var(--text-sub);
-    font-style: italic;
-    margin-bottom: 8px;
-    line-height: 1.3;
-  }
-
-  .last-time-box {
-    background: #252525;
-    border-left: 3px solid var(--accent-light);
-    padding: 4px 8px;
-    font-size: 10px;
-    color: #d0d0d0;
-    border-radius: 0 4px 4px 0;
-    margin-bottom: 6px;
-    display: flex;
-    justify-content: space-between;
-  }
-
-  .pr-tag {
-    color: var(--gold);
-    font-weight: bold;
-  }
-
-  .suggest-tag {
-    color: #81c784;
-    font-size: 10px;
-    margin-bottom: 4px;
-    font-weight: 600;
-  }
-
-  .set-row {
-    display: grid;
-    grid-template-columns: 24px 1fr 50px 55px 40px;
-    gap: 5px;
-    align-items: center;
-    margin-bottom: 6px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid #2a2a2a;
-  }
-
-  .plank-row {
-    display: grid;
-    grid-template-columns: 24px 1fr 70px 40px;
-    gap: 6px;
-    align-items: center;
-    margin-bottom: 6px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid #2a2a2a;
-  }
-
-  .set-num {
-    font-weight: bold;
-    font-size: 12px;
-    color: var(--text-sub);
-    text-align: center;
-  }
-
-  .band-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 3px;
-  }
-
-  .band-grid select {
-    background: #2a2a2a;
-    border: 1px solid #444;
-    color: white;
-    font-size: 10px;
-    padding: 3px;
-    border-radius: 4px;
-  }
-
-  .reps-input input {
-    width: 100%;
-    background: #2a2a2a;
-    border: 1px solid #444;
-    color: white;
-    text-align: center;
-    padding: 5px 0;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 600;
-  }
-
-  .calc-weight {
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--accent-light);
-    text-align: center;
-  }
-
-  .log-btn {
-    background: var(--accent);
-    color: white;
-    border: none;
-    padding: 6px 0;
-    border-radius: 6px;
-    font-weight: bold;
-    font-size: 11px;
-  }
-
-  .plank-btn {
-    background: #2e7d32;
-    color: white;
-    border: none;
-    padding: 6px 8px;
-    border-radius: 6px;
-    font-weight: bold;
-    font-size: 11px;
-    width: 100%;
-  }
-
-  .plank-btn.active-timer {
-    background: #d32f2f;
-  }
-
-  .log-btn.logged {
-    background: #444;
-    color: #888;
-  }
-
-  .history-card {
-    background: var(--card-bg);
-    border-radius: 10px;
-    padding: 12px;
-    margin-bottom: 10px;
-    border: 1px solid var(--border);
-  }
-
-  .history-header {
-    display: flex;
-    justify-content: space-between;
-    font-weight: bold;
-    font-size: 13px;
-    color: var(--accent-light);
-    margin-bottom: 6px;
-  }
-
-  .history-item {
-    font-size: 11px;
-    color: #ccc;
-    padding: 6px 0;
-    border-bottom: 1px solid #2a2a2a;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .delete-item-btn {
-    background: #c62828;
-    color: white;
-    border: none;
-    padding: 3px 6px;
-    border-radius: 4px;
-    font-size: 10px;
-    font-weight: bold;
-    cursor: pointer;
-  }
-
-  .timer-banner {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: #1b5e20;
-    color: white;
-    padding: 10px 14px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 -4px 12px rgba(0,0,0,0.5);
-    z-index: 1000;
-  }
-
-  .timer-text {
-    font-weight: bold;
-    font-size: 13px;
-  }
-
-  .timer-controls button {
-    background: white;
-    color: #1b5e20;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 6px;
-    font-weight: bold;
-    font-size: 11px;
-    margin-left: 4px;
-  }
-
-  .action-btn-group {
-    display: flex;
-    gap: 8px;
-    margin-top: 14px;
-  }
-
-  .export-btn, .backup-btn {
-    flex: 1;
-    background: #333;
-    color: white;
-    border: 1px solid var(--border);
-    padding: 10px;
-    border-radius: 8px;
-    font-weight: bold;
-    font-size: 12px;
-  }
-
-  canvas {
-    width: 100%;
-    height: 180px;
-    background: #181818;
-    border-radius: 8px;
-    margin-top: 8px;
-  }
-
+  .ex-meta { font-size: 11px; color: var(--accent-light); margin-bottom: 4px; }
+  .ex-desc { font-size: 11px; color: var(--text-sub); font-style: italic; margin-bottom: 8px; line-height: 1.3; }
+  .last-time-box { background: #252525; border-left: 3px solid var(--accent-light); padding: 4px 8px; font-size: 10px; color: #d0d0d0; border-radius: 0 4px 4px 0; margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .pr-tag { color: var(--gold); font-weight: bold; }
+  .suggest-tag { color: #81c784; font-size: 10px; margin-bottom: 4px; font-weight: 600; }
+  .set-row { display: grid; grid-template-columns: 24px 1fr 50px 55px 40px; gap: 5px; align-items: center; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #2a2a2a; }
+  .plank-row { display: grid; grid-template-columns: 24px 1fr 70px 40px; gap: 6px; align-items: center; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #2a2a2a; }
+  .set-num { font-weight: bold; font-size: 12px; color: var(--text-sub); text-align: center; }
+  .band-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+  .band-grid select { background: #2a2a2a; border: 1px solid #444; color: white; font-size: 10px; padding: 3px; border-radius: 4px; }
+  .reps-input input { width: 100%; background: #2a2a2a; border: 1px solid #444; color: white; text-align: center; padding: 5px 0; border-radius: 6px; font-size: 13px; font-weight: 600; }
+  .calc-weight { font-size: 10px; font-weight: 700; color: var(--accent-light); text-align: center; }
+  .log-btn { background: var(--accent); color: white; border: none; padding: 6px 0; border-radius: 6px; font-weight: bold; font-size: 11px; }
+  .plank-btn { background: #2e7d32; color: white; border: none; padding: 6px 8px; border-radius: 6px; font-weight: bold; font-size: 11px; width: 100%; }
+  .plank-btn.active-timer { background: #d32f2f; }
+  .log-btn.logged { background: #444; color: #888; }
+  .history-card { background: var(--card-bg); border-radius: 10px; padding: 12px; margin-bottom: 10px; border: 1px solid var(--border); }
+  .history-header { display: flex; justify-content: space-between; font-weight: bold; font-size: 13px; color: var(--accent-light); margin-bottom: 6px; }
+  .history-item { font-size: 11px; color: #ccc; padding: 6px 0; border-bottom: 1px solid #2a2a2a; display: flex; justify-content: space-between; align-items: center; }
+  .delete-item-btn { background: #c62828; color: white; border: none; padding: 3px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; cursor: pointer; }
+  .timer-banner { position: fixed; bottom: 0; left: 0; right: 0; background: #1b5e20; color: white; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 12px rgba(0,0,0,0.5); z-index: 1000; }
+  .timer-text { font-weight: bold; font-size: 13px; }
+  .timer-controls button { background: white; color: #1b5e20; border: none; padding: 5px 10px; border-radius: 6px; font-weight: bold; font-size: 11px; margin-left: 4px; }
+  .action-btn-group { display: flex; gap: 8px; margin-top: 14px; }
+  .export-btn, .backup-btn { flex: 1; background: #333; color: white; border: 1px solid var(--border); padding: 10px; border-radius: 8px; font-weight: bold; font-size: 12px; }
+  canvas { width: 100%; height: 180px; background: #181818; border-radius: 8px; margin-top: 8px; }
   #file-input { display: none; }
 </style>
 </head>
 <body>
 
-<h1>PTP Golf Workout Tracker</h1>
+<h1>PTP Golf Workout Tracker V5.1</h1>
 
 <div class="parent-tabs">
   <button class="parent-btn active" id="parent-exercises" onclick="switchParentTab('Exercises')">Exercises</button>
@@ -572,15 +269,7 @@
 </div>
 
 <script>
-const BANDS = {
-  "None": 0.0,
-  "Pink": 2.2,
-  "Lime": 5.5,
-  "Green": 7.5,
-  "Orange": 12.4,
-  "Blue": 14.9,
-  "Black": 22.4
-};
+const BANDS = { "None": 0.0, "Pink": 2.2, "Lime": 5.5, "Green": 7.5, "Orange": 12.4, "Blue": 14.9, "Black": 22.4 };
 
 const EXERCISES = {
   "Day 1": [
@@ -627,7 +316,6 @@ window.currentParentTab = "Exercises";
 let currentSubTab = "Day 1";
 let restTimer = null;
 let timerSeconds = 0;
-
 let plankTimer = null;
 let plankSeconds = 0;
 let activePlankKey = null;
@@ -650,11 +338,9 @@ function switchParentTab(tab) {
 function switchSubTab(subTab) {
   currentSubTab = subTab;
   document.querySelectorAll('.sub-btn').forEach(btn => btn.classList.remove('active'));
-  
   const cleanId = subTab.toLowerCase().replace(' ', '').replace('-', '');
   const targetBtn = document.getElementById(`sub-${cleanId}`);
   if (targetBtn) targetBtn.classList.add('active');
-
   renderSubView();
 }
 
@@ -696,7 +382,6 @@ function renderSubView() {
 
   if (currentSubTab === 'Elliptical') {
     metaBox.style.display = 'none';
-
     let levelOptions = '';
     for (let lvl = 1; lvl <= 16; lvl++) {
       levelOptions += `<option value="${lvl}" ${lvl === 4 ? 'selected' : ''}>Level ${lvl}</option>`;
@@ -731,9 +416,7 @@ function renderSubView() {
           </div>
           <div class="input-group">
             <label>Resistance Level (1-16)</label>
-            <select id="cardio-level">
-              ${levelOptions}
-            </select>
+            <select id="cardio-level">${levelOptions}</select>
           </div>
           <div class="input-group" style="grid-column: span 2;">
             <label>Pre-Programmed Workout</label>
@@ -779,9 +462,7 @@ function renderSubView() {
 
       if (ex.isPlank) {
         setsHtml += `
-          <div class="last-time-box">
-            <span>${lastText}</span>
-          </div>
+          <div class="last-time-box"><span>${lastText}</span></div>
           <div class="plank-row" id="row-${exIdx}-${setNum}">
             <div class="set-num">S${setNum}</div>
             <div>
@@ -862,16 +543,13 @@ function togglePlankTimer(exIdx, setNum) {
     btn.classList.remove('active-timer');
     btn.innerText = 'Start Plank Timer';
     input.value = plankSeconds;
-    
     logSet('Plank Finisher', exIdx, setNum, 0.0, true);
   } else {
     if (plankTimer) clearInterval(plankTimer);
-
     plankSeconds = 0;
     activePlankKey = key;
     btn.classList.add('active-timer');
     btn.innerText = `Stop & Record (${plankSeconds}s)`;
-
     plankTimer = setInterval(() => {
       plankSeconds++;
       btn.innerText = `Stop & Record (${plankSeconds}s)`;
@@ -890,7 +568,7 @@ function deleteLogFromCloud(docId) {
   if (!docId) return;
   if (window.deleteDoc && window.doc && window.db) {
     const docRef = window.doc(window.db, "workout_history", docId);
-    window.deleteDoc(docRef).catch(e => console.error("Error deleting document from cloud:", e));
+    window.deleteDoc(docRef).catch(e => console.warn("Cloud delete restricted:", e));
   }
 }
 
@@ -928,19 +606,16 @@ function logSet(exName, exIdx, setNum, mult, isPlank) {
 
   const currentMax = getMaxWeightPR(exName);
   const isPR = parseFloat(weight) > currentMax && !isPlank;
-
   const logEntry = { type: 'resistance', date, day: currentSubTab, readiness, exercise: exName, setNum, b1, b2, b3, b4, reps, weight, kcal, hr };
 
   const history = getHistory();
   history.push(logEntry);
   localStorage.setItem('ptp_workout_history', JSON.stringify(history));
-
   saveLogToCloud(logEntry);
 
   const btn = document.getElementById(`btn-${exIdx}-${setNum}`);
   btn.classList.add('logged');
   btn.innerText = isPR ? '🏆 PR!' : '✓';
-
   startRestTimer(30);
 }
 
@@ -956,14 +631,12 @@ function logElliptical() {
   if (!duration) return alert("Please enter workout duration!");
 
   const logEntry = { type: 'elliptical', date, day: 'Elliptical', exercise: 'Elliptical Trainer', duration, distance, kcal, hr, level, program };
-
   const history = getHistory();
   history.push(logEntry);
   localStorage.setItem('ptp_workout_history', JSON.stringify(history));
-
   saveLogToCloud(logEntry);
 
-  alert('Elliptical session logged successfully & synced!');
+  alert('Elliptical session logged successfully!');
 }
 
 function renderHistory() {
@@ -1038,7 +711,6 @@ function renderHistory() {
 
 function renderAnalytics() {
   const history = getHistory();
-  
   const volCanvas = document.getElementById('volumeChart');
   const vctx = volCanvas.getContext('2d');
   vctx.clearRect(0, 0, volCanvas.width, volCanvas.height);
@@ -1067,10 +739,6 @@ function renderAnalytics() {
       vctx.fillRect(x - 3, y - 3, 6, 6);
     });
     vctx.stroke();
-  } else {
-    vctx.fillStyle = '#888';
-    vctx.font = '12px sans-serif';
-    vctx.fillText('Log workout sessions to unlock volume trends', 20, 90);
   }
 
   const cardioCanvas = document.getElementById('cardioChart');
@@ -1078,7 +746,6 @@ function renderAnalytics() {
   cctx.clearRect(0, 0, cardioCanvas.width, cardioCanvas.height);
 
   const cardioEntries = history.filter(h => h.type === 'elliptical').sort((a, b) => (a.date || '').localeCompare(b.date || '')).slice(-7);
-  
   if (cardioEntries.length > 0) {
     const maxTime = Math.max(...cardioEntries.map(c => parseFloat(c.duration || 0)), 30);
     cctx.strokeStyle = '#64b5f6';
@@ -1093,10 +760,6 @@ function renderAnalytics() {
       cctx.fillRect(x - 3, y - 3, 6, 6);
     });
     cctx.stroke();
-  } else {
-    cctx.fillStyle = '#888';
-    cctx.font = '12px sans-serif';
-    cctx.fillText('Log elliptical sessions to unlock cardio trends', 20, 90);
   }
 }
 
@@ -1118,7 +781,6 @@ function startRestTimer(seconds) {
   timerSeconds = seconds;
   document.getElementById('timer-banner').style.display = 'flex';
   updateTimerDisplay();
-
   restTimer = setInterval(() => {
     timerSeconds--;
     updateTimerDisplay();
@@ -1146,7 +808,6 @@ function stopTimer() {
 function exportCSV() {
   const history = getHistory();
   if (history.length === 0) return alert("No history logged yet!");
-
   let csv = "Type,Date,Workout Day,Readiness,Exercise Name,Set #,Band 1,Band 2,Band 3,Band 4,Reps/Secs/Duration,Calculated Wt (kg)/Dist (km),Active kcal,Avg HR,Program/Level\n";
   history.forEach(h => {
     if (h.type === 'elliptical') {
@@ -1155,7 +816,6 @@ function exportCSV() {
       csv += `Resistance,${h.date},${h.day},${h.readiness},"${h.exercise}",${h.setNum},${h.b1},${h.b2},${h.b3},${h.b4},${h.reps},${h.weight},${h.kcal},${h.hr},N/A\n`;
     }
   });
-
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1177,20 +837,17 @@ function exportJSON() {
 function importJSON(e) {
   const file = e.target.files[0];
   if (!file) return;
-
   const reader = new FileReader();
   reader.onload = function(evt) {
     try {
       const data = JSON.parse(evt.target.result);
       if (Array.isArray(data)) {
         localStorage.setItem('ptp_workout_history', JSON.stringify(data));
-        if (Array.isArray(data)) {
-          data.forEach(item => saveLogToCloud(item));
-        }
-        alert('History restored & synced to cloud!');
+        data.forEach(item => saveLogToCloud(item));
+        alert('History restored & synced!');
         if (window.currentParentTab === 'History') renderHistory();
       } else {
-        alert('Invalid backup file format.');
+        alert('Invalid backup file.');
       }
     } catch(err) {
       alert('Error reading JSON file.');

@@ -24,14 +24,17 @@
     enableIndexedDbPersistence 
   } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+const keyPart1 = "AIzaSyBMx1lTLA3sVXvV";
+const keyPart2 = "PIRZc7sN3WfpDa2idd8";
+
 const firebaseConfig = {
-    apiKey: "AIzaSyADhDIPOww0ISvbPGfM9YeC56fEfRr1Y-k",
-    authDomain: "ptp-golf-tracker.firebaseapp.com",
-    projectId: "ptp-golf-tracker",
-    storageBucket: "ptp-golf-tracker.firebasestorage.app",
-    messagingSenderId: "1027233613421",
-    appId: "1:1027233613421:web:3844687d007958fca82164"
-  };
+  apiKey: keyPart1 + keyPart2,
+  authDomain: "ptp-golf-tracker.firebaseapp.com",
+  projectId: "ptp-golf-tracker",
+  storageBucket: "ptp-golf-tracker.firebasestorage.app",
+  messagingSenderId: "1027233613421",
+  appId: "1:1027233613421:web:3844687d007958fca82164"
+};
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);

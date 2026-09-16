@@ -13,6 +13,7 @@
 <!-- Firebase SDKs (v10.8.0 Web Modules via CDN) -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
   import { 
     getFirestore, 
     collection, 
@@ -35,6 +36,7 @@
   };
 
   const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
   const db = getFirestore(app);
 
   enableIndexedDbPersistence(db).catch((err) => {
@@ -51,16 +53,30 @@
   window.query = query;
   window.orderBy = orderBy;
 
-  const q = query(window.dbCollection, orderBy("timestamp", "asc"));
-  onSnapshot(q, (snapshot) => {
-    const cloudHistory = [];
-    snapshot.forEach((d) => {
-      cloudHistory.push({ id: d.id, ...d.data() });
-    });
-    localStorage.setItem('ptp_workout_history', JSON.stringify(cloudHistory));
-    if (window.currentParentTab === 'History') window.renderHistory();
-    if (window.currentParentTab === 'Analytics') window.renderAnalytics();
+  // Seamless Background Anonymous Auth
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      console.log("Device authenticated securely:", user.uid);
+      initFirestoreListener();
+    } else {
+      signInAnonymously(auth).catch((error) => {
+        console.error("Authentication failed:", error);
+      });
+    }
   });
+
+  function initFirestoreListener() {
+    const q = query(window.dbCollection, orderBy("timestamp", "asc"));
+    onSnapshot(q, (snapshot) => {
+      const cloudHistory = [];
+      snapshot.forEach((d) => {
+        cloudHistory.push({ id: d.id, ...d.data() });
+      });
+      localStorage.setItem('ptp_workout_history', JSON.stringify(cloudHistory));
+      if (window.currentParentTab === 'History') window.renderHistory();
+      if (window.currentParentTab === 'Analytics') window.renderAnalytics();
+    });
+  }
 </script>
 
 <script>
@@ -100,7 +116,7 @@
   })();
 </script>
 
-<title>PTP Golf Workout Tracker V4.1</title>
+<title>PTP Golf Workout Tracker V4.2</title>
 <style>
   :root {
     --bg-color: #121212;

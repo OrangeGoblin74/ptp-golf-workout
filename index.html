@@ -37,10 +37,7 @@
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') console.warn('Persistence failed: Multiple tabs open');
-    else if (err.code === 'unimplemented') console.warn('Browser does not support persistence');
-  });
+  enableIndexedDbPersistence(db).catch(() => {});
 
   window.db = db;
   window.dbCollection = collection(db, "workout_history");
@@ -51,15 +48,20 @@
   window.query = query;
   window.orderBy = orderBy;
 
+  // Immediate Auth Trigger & Alert
+  console.log("Attempting Anonymous Auth...");
+  signInAnonymously(auth)
+    .then((cred) => {
+      alert("Auth Success! Device UID: " + cred.user.uid);
+    })
+    .catch((err) => {
+      alert("Auth Error: " + err.code + " - " + err.message);
+    });
+
   onAuthStateChanged(auth, (user) => {
     if (user) {
-      console.log("Device authenticated securely:", user.uid);
+      console.log("Device session active:", user.uid);
       initFirestoreListener();
-    } else {
-      signInAnonymously(auth).catch((error) => {
-        console.error("Auth failed, operating in offline fallback mode:", error);
-        initFirestoreListener();
-      });
     }
   });
 
@@ -72,11 +74,11 @@
       });
       if (cloudHistory.length > 0) {
         localStorage.setItem('ptp_workout_history', JSON.stringify(cloudHistory));
-        if (window.currentParentTab === 'History') window.renderHistory();
-        if (window.currentParentTab === 'Analytics') window.renderAnalytics();
+        if (window.currentParentTab === 'History' && window.renderHistory) window.renderHistory();
+        if (window.currentParentTab === 'Analytics' && window.renderAnalytics) window.renderAnalytics();
       }
     }, (error) => {
-      console.warn("Firestore listener restricted, using local storage:", error);
+      console.warn("Firestore access blocked or restricted:", error);
     });
   }
 </script>
@@ -118,7 +120,7 @@
   })();
 </script>
 
-<title>PTP Golf Workout Tracker V5.1</title>
+<title>PTP Golf Workout Tracker V5.2</title>
 <style>
   :root {
     --bg-color: #121212;
@@ -191,7 +193,7 @@
 </head>
 <body>
 
-<h1>PTP Golf Workout Tracker V5.1</h1>
+<h1>PTP Golf Workout Tracker V5.2</h1>
 
 <div class="parent-tabs">
   <button class="parent-btn active" id="parent-exercises" onclick="switchParentTab('Exercises')">Exercises</button>

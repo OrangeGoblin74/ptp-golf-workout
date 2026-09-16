@@ -247,6 +247,16 @@
     border-bottom: 1px solid #2a2a2a;
   }
 
+  .plank-row {
+    display: grid;
+    grid-template-columns: 24px 1fr 70px 40px;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #2a2a2a;
+  }
+
   .set-num {
     font-weight: bold;
     font-size: 12px;
@@ -296,6 +306,21 @@
     border-radius: 6px;
     font-weight: bold;
     font-size: 11px;
+  }
+
+  .plank-btn {
+    background: #2e7d32;
+    color: white;
+    border: none;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 11px;
+    width: 100%;
+  }
+
+  .plank-btn.active-timer {
+    background: #d32f2f;
   }
 
   .log-btn.logged {
@@ -528,6 +553,11 @@ let currentSubTab = "Day 1";
 let restTimer = null;
 let timerSeconds = 0;
 
+/* Plank Stopwatch Variables */
+let plankTimer = null;
+let plankSeconds = 0;
+let activePlankKey = null;
+
 document.getElementById('session-date').value = new Date().toISOString().split('T')[0];
 
 function switchParentTab(tab) {
@@ -576,7 +606,7 @@ function renderSubView() {
     WARMUP_ROUTINE.forEach((w, idx) => {
       html += `
         <div style="padding:8px 0; border-bottom:1px solid #2a2a2a;">
-          <div style="display:flex; justify-size:space-between; font-weight:bold; font-size:13px; color:white;">
+          <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:13px; color:white;">
             <span>${idx + 1}. ${w.name}</span>
             <span style="color:var(--accent-light); font-size:11px;">${w.duration}</span>
           </div>
@@ -660,33 +690,49 @@ function renderSubView() {
       const lastEntry = [...history].reverse().find(h => h.exercise === ex.name && h.setNum == setNum);
       const pr = getMaxWeightPR(ex.name);
       
-      let lastText = lastEntry ? `Last: ${[lastEntry.b1, lastEntry.b2, lastEntry.b3, lastEntry.b4].filter(b=>b&&b!=='None').join('+')||'BW'} @ ${lastEntry.reps} reps` : 'First Session';
+      let lastText = lastEntry ? (ex.isPlank ? `Last: ${lastEntry.reps} secs` : `Last: ${[lastEntry.b1, lastEntry.b2, lastEntry.b3, lastEntry.b4].filter(b=>b&&b!=='None').join('+')||'BW'} @ ${lastEntry.reps} reps`) : 'First Session';
       let prTag = pr > 0 ? `<span class="pr-tag">PR: ${pr}kg</span>` : '';
       let suggestTag = (lastEntry && parseInt(lastEntry.reps) >= 12 && !ex.isPlank) ? `<div class="suggest-tag">💡 Target hit last time: Try adding +Pink (2.2kg) or +1 rep</div>` : '';
 
-      setsHtml += `
-        <div class="last-time-box">
-          <span>${lastText}</span>
-          ${prTag}
-        </div>
-        ${suggestTag}
-        <div class="set-row" id="row-${exIdx}-${setNum}">
-          <div class="set-num">S${setNum}</div>
-          <div class="band-grid">
-            ${ex.isPlank ? '<span style="font-size:10px; color:#888; grid-column:span 2;">Bodyweight Hold</span>' : `
+      if (ex.isPlank) {
+        setsHtml += `
+          <div class="last-time-box">
+            <span>${lastText}</span>
+          </div>
+          <div class="plank-row" id="row-${exIdx}-${setNum}">
+            <div class="set-num">S${setNum}</div>
+            <div>
+              <button class="plank-btn" id="plank-timer-btn-${exIdx}-${setNum}" onclick="togglePlankTimer(${exIdx}, ${setNum})">Start Plank Timer</button>
+            </div>
+            <div class="reps-input">
+              <input type="number" id="reps-${exIdx}-${setNum}" placeholder="Secs" value="45">
+            </div>
+            <button class="log-btn" id="btn-${exIdx}-${setNum}" onclick="logSet('${ex.name}', ${exIdx}, ${setNum}, ${ex.mult}, true)">Log</button>
+          </div>
+        `;
+      } else {
+        setsHtml += `
+          <div class="last-time-box">
+            <span>${lastText}</span>
+            ${prTag}
+          </div>
+          ${suggestTag}
+          <div class="set-row" id="row-${exIdx}-${setNum}">
+            <div class="set-num">S${setNum}</div>
+            <div class="band-grid">
               <select onchange="recalcRow(${exIdx}, ${setNum})" id="b1-${exIdx}-${setNum}">${renderBandOptions()}</select>
               <select onchange="recalcRow(${exIdx}, ${setNum})" id="b2-${exIdx}-${setNum}">${renderBandOptions()}</select>
               <select onchange="recalcRow(${exIdx}, ${setNum})" id="b3-${exIdx}-${setNum}">${renderBandOptions()}</select>
               <select onchange="recalcRow(${exIdx}, ${setNum})" id="b4-${exIdx}-${setNum}">${renderBandOptions()}</select>
-            `}
+            </div>
+            <div class="reps-input">
+              <input type="number" id="reps-${exIdx}-${setNum}" placeholder="Reps" value="12">
+            </div>
+            <div class="calc-weight" id="wt-${exIdx}-${setNum}">0.0 kg</div>
+            <button class="log-btn" id="btn-${exIdx}-${setNum}" onclick="logSet('${ex.name}', ${exIdx}, ${setNum}, ${ex.mult}, false)">Log</button>
           </div>
-          <div class="reps-input">
-            <input type="number" id="reps-${exIdx}-${setNum}" placeholder="${ex.isPlank ? 'Secs' : 'Reps'}" value="${ex.isPlank ? 45 : 12}">
-          </div>
-          <div class="calc-weight" id="wt-${exIdx}-${setNum}">${ex.isPlank ? '0 kg' : '0.0 kg'}</div>
-          <button class="log-btn" id="btn-${exIdx}-${setNum}" onclick="logSet('${ex.name}', ${exIdx}, ${setNum}, ${ex.mult}, ${ex.isPlank || false})">Log</button>
-        </div>
-      `;
+        `;
+      }
     }
 
     card.innerHTML = `
@@ -719,6 +765,39 @@ function recalcRow(exIdx, setNum) {
 
   const totalWt = (BANDS[b1] + BANDS[b2] + BANDS[b3] + BANDS[b4]) * mult;
   document.getElementById(`wt-${exIdx}-${setNum}`).innerText = totalWt.toFixed(1) + ' kg';
+}
+
+function togglePlankTimer(exIdx, setNum) {
+  const key = `${exIdx}-${setNum}`;
+  const btn = document.getElementById(`plank-timer-btn-${key}`);
+  const input = document.getElementById(`reps-${key}`);
+
+  if (activePlankKey === key && plankTimer) {
+    // Stop & Record Timer
+    clearInterval(plankTimer);
+    plankTimer = null;
+    activePlankKey = null;
+    btn.classList.remove('active-timer');
+    btn.innerText = 'Start Plank Timer';
+    input.value = plankSeconds;
+    
+    // Auto-log set
+    logSet('Plank Finisher', exIdx, setNum, 0.0, true);
+  } else {
+    // Stop any existing plank timer first
+    if (plankTimer) clearInterval(plankTimer);
+
+    // Start New Plank Timer
+    plankSeconds = 0;
+    activePlankKey = key;
+    btn.classList.add('active-timer');
+    btn.innerText = `Stop & Record (0s)`;
+
+    plankTimer = setInterval(() => {
+      plankSeconds++;
+      btn.innerText = `Stop & Record (${plankSeconds}s)`;
+    }, 1000);
+  }
 }
 
 function logSet(exName, exIdx, setNum, mult, isPlank) {
@@ -838,7 +917,6 @@ function renderHistory() {
 function renderAnalytics() {
   const history = getHistory();
   
-  // Resistance Volume Canvas Chart
   const volCanvas = document.getElementById('volumeChart');
   const vctx = volCanvas.getContext('2d');
   vctx.clearRect(0, 0, volCanvas.width, volCanvas.height);
@@ -873,7 +951,6 @@ function renderAnalytics() {
     vctx.fillText('Log workout sessions to unlock volume trends', 20, 90);
   }
 
-  // Cardio Canvas Chart
   const cardioCanvas = document.getElementById('cardioChart');
   const cctx = cardioCanvas.getContext('2d');
   cctx.clearRect(0, 0, cardioCanvas.width, cardioCanvas.height);

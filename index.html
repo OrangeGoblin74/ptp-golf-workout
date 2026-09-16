@@ -10,6 +10,60 @@
 <!-- Dynamic PNG Icon Link target -->
 <link id="dynamic-apple-touch-icon" rel="apple-touch-icon" href="">
 
+<!-- Firebase SDKs (v10.8.0 Web Modules via CDN) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { 
+    getFirestore, 
+    collection, 
+    addDoc, 
+    onSnapshot, 
+    query, 
+    orderBy,
+    enableIndexedDbPersistence 
+  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAdhDIPOww0ISvbPGFm9YeC56fEfRr1Y-k",
+    authDomain: "ptp-golf-tracker.firebaseapp.com",
+    projectId: "ptp-golf-tracker",
+    storageBucket: "ptp-golf-tracker.firebasestorage.app",
+    messagingSenderId: "1027233613421",
+    appId: "1:1027233613421:web:3844687d007958fca82164"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Enable offline persistence
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn('Persistence failed: Multiple tabs open');
+    } else if (err.code === 'unimplemented') {
+      console.warn('Browser does not support persistence');
+    }
+  });
+
+  window.db = db;
+  window.dbCollection = collection(db, "workout_history");
+  window.addDoc = addDoc;
+  window.onSnapshot = onSnapshot;
+  window.query = query;
+  window.orderBy = orderBy;
+
+  // Real-time listener for multi-device sync
+  const q = query(window.dbCollection, orderBy("timestamp", "asc"));
+  onSnapshot(q, (snapshot) => {
+    const cloudHistory = [];
+    snapshot.forEach((doc) => {
+      cloudHistory.push({ id: doc.id, ...doc.data() });
+    });
+    localStorage.setItem('ptp_workout_history', JSON.stringify(cloudHistory));
+    if (window.currentParentTab === 'History') window.renderHistory();
+    if (window.currentParentTab === 'Analytics') window.renderAnalytics();
+  });
+</script>
+
 <script>
   (function() {
     const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
@@ -47,7 +101,7 @@
   })();
 </script>
 
-<title>PTP Golf Workout Tracker V3</title>
+<title>PTP Golf Workout Tracker V4</title>
 <style>
   :root {
     --bg-color: #121212;
@@ -78,7 +132,6 @@
     margin: 4px 0 12px 0;
   }
 
-  /* Top Parent Navigation Tabs */
   .parent-tabs {
     display: flex;
     background: #000000;
@@ -104,7 +157,6 @@
     color: white;
   }
 
-  /* Sub Navigation Tabs for Exercises */
   .sub-tabs {
     display: flex;
     background: var(--card-bg);
@@ -415,16 +467,13 @@
 
 <h1>PTP Golf Workout Tracker</h1>
 
-<!-- Parent Dashboard Navigation -->
 <div class="parent-tabs">
   <button class="parent-btn active" id="parent-exercises" onclick="switchParentTab('Exercises')">Exercises</button>
   <button class="parent-btn" id="parent-history" onclick="switchParentTab('History')">History</button>
   <button class="parent-btn" id="parent-analytics" onclick="switchParentTab('Analytics')">Analytics</button>
 </div>
 
-<!-- EXERCISES VIEW -->
 <div id="view-exercises">
-  <!-- Sub Tabs under Exercises -->
   <div class="sub-tabs">
     <button class="sub-btn active" id="sub-day1" onclick="switchSubTab('Day 1')">Day 1</button>
     <button class="sub-btn" id="sub-day2" onclick="switchSubTab('Day 2')">Day 2</button>
@@ -463,7 +512,6 @@
   </div>
 </div>
 
-<!-- HISTORY VIEW -->
 <div id="view-history" style="display:none;">
   <div id="history-container"></div>
   <div class="action-btn-group">
@@ -474,7 +522,6 @@
   <input type="file" id="file-input" accept=".json" onchange="importJSON(event)">
 </div>
 
-<!-- ANALYTICS VIEW -->
 <div id="view-analytics" style="display:none;">
   <div class="analytics-card">
     <div class="ex-title" style="font-size:14px; color:var(--accent-light);">Total Session Volume Progress (kg)</div>
@@ -487,7 +534,6 @@
   </div>
 </div>
 
-<!-- Rest Timer Bar -->
 <div class="timer-banner" id="timer-banner" style="display:none;">
   <span class="timer-text" id="timer-display">Rest Timer: 30s</span>
   <div class="timer-controls">
@@ -548,12 +594,11 @@ const WARMUP_ROUTINE = [
   { name: "Standing Leg Swings", duration: "30s", desc: "Front-to-back and side-to-side swings for hip joint mobility." }
 ];
 
-let currentParentTab = "Exercises";
+window.currentParentTab = "Exercises";
 let currentSubTab = "Day 1";
 let restTimer = null;
 let timerSeconds = 0;
 
-/* Plank Stopwatch Variables */
 let plankTimer = null;
 let plankSeconds = 0;
 let activePlankKey = null;
@@ -561,7 +606,7 @@ let activePlankKey = null;
 document.getElementById('session-date').value = new Date().toISOString().split('T')[0];
 
 function switchParentTab(tab) {
-  currentParentTab = tab;
+  window.currentParentTab = tab;
   document.querySelectorAll('.parent-btn').forEach(btn => btn.classList.remove('active'));
   document.getElementById(`parent-${tab.toLowerCase()}`).classList.add('active');
 
@@ -622,7 +667,6 @@ function renderSubView() {
   if (currentSubTab === 'Elliptical') {
     metaBox.style.display = 'none';
 
-    // Build Resistance Level options 1-16 matching Infiniti VG30
     let levelOptions = '';
     for (let lvl = 1; lvl <= 16; lvl++) {
       levelOptions += `<option value="${lvl}" ${lvl === 4 ? 'selected' : ''}>Level ${lvl}</option>`;
@@ -796,12 +840,19 @@ function togglePlankTimer(exIdx, setNum) {
     plankSeconds = 0;
     activePlankKey = key;
     btn.classList.add('active-timer');
-    btn.innerText = `Stop & Record (0s)`;
+    btn.innerText = `Stop & Record (${plankSeconds}s)`;
 
     plankTimer = setInterval(() => {
       plankSeconds++;
       btn.innerText = `Stop & Record (${plankSeconds}s)`;
     }, 1000);
+  }
+}
+
+function saveLogToCloud(logEntry) {
+  logEntry.timestamp = Date.now();
+  if (window.addDoc && window.dbCollection) {
+    window.addDoc(window.dbCollection, logEntry).catch(e => console.warn('Cloud sync queued offline:', e));
   }
 }
 
@@ -830,6 +881,8 @@ function logSet(exName, exIdx, setNum, mult, isPlank) {
   history.push(logEntry);
   localStorage.setItem('ptp_workout_history', JSON.stringify(history));
 
+  saveLogToCloud(logEntry);
+
   const btn = document.getElementById(`btn-${exIdx}-${setNum}`);
   btn.classList.add('logged');
   btn.innerText = isPR ? '🏆 PR!' : '✓';
@@ -854,7 +907,9 @@ function logElliptical() {
   history.push(logEntry);
   localStorage.setItem('ptp_workout_history', JSON.stringify(history));
 
-  alert('Elliptical session logged successfully!');
+  saveLogToCloud(logEntry);
+
+  alert('Elliptical session logged successfully & synced!');
 }
 
 function renderHistory() {
@@ -1066,8 +1121,11 @@ function importJSON(e) {
       const data = JSON.parse(evt.target.result);
       if (Array.isArray(data)) {
         localStorage.setItem('ptp_workout_history', JSON.stringify(data));
-        alert('History restored successfully!');
-        if (currentParentTab === 'History') renderHistory();
+        if (Array.isArray(data)) {
+          data.forEach(item => saveLogToCloud(item));
+        }
+        alert('History restored & synced to cloud!');
+        if (window.currentParentTab === 'History') renderHistory();
       } else {
         alert('Invalid backup file format.');
       }
@@ -1077,6 +1135,1153 @@ function importJSON(e) {
   };
   reader.readAsText(file);
 }
+
+window.renderHistory = renderHistory;
+window.renderAnalytics = renderAnalytics;
+
+renderSubView();
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PTP Golf Workout">
+
+<!-- Dynamic PNG Icon Link target -->
+<link id="dynamic-apple-touch-icon" rel="apple-touch-icon" href="">
+
+<!-- Firebase SDKs (v10.8.0 Web Modules via CDN) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { 
+    getFirestore, 
+    collection, 
+    addDoc, 
+    onSnapshot, 
+    query, 
+    orderBy,
+    enableIndexedDbPersistence 
+  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAdhDIPOww0ISvbPGFm9YeC56fEfRr1Y-k",
+    authDomain: "ptp-golf-tracker.firebaseapp.com",
+    projectId: "ptp-golf-tracker",
+    storageBucket: "ptp-golf-tracker.firebasestorage.app",
+    messagingSenderId: "1027233613421",
+    appId: "1:1027233613421:web:3844687d007958fca82164"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Enable offline persistence
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn('Persistence failed: Multiple tabs open');
+    } else if (err.code === 'unimplemented') {
+      console.warn('Browser does not support persistence');
+    }
+  });
+
+  window.db = db;
+  window.dbCollection = collection(db, "workout_history");
+  window.addDoc = addDoc;
+  window.onSnapshot = onSnapshot;
+  window.query = query;
+  window.orderBy = orderBy;
+
+  // Real-time listener for multi-device sync
+  const q = query(window.dbCollection, orderBy("timestamp", "asc"));
+  onSnapshot(q, (snapshot) => {
+    const cloudHistory = [];
+    snapshot.forEach((doc) => {
+      cloudHistory.push({ id: doc.id, ...doc.data() });
+    });
+    localStorage.setItem('ptp_workout_history', JSON.stringify(cloudHistory));
+    if (window.currentParentTab === 'History') window.renderHistory();
+    if (window.currentParentTab === 'Analytics') window.renderAnalytics();
+  });
+</script>
+
+<script>
+  (function() {
+    const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+      <rect width="512" height="512" rx="115" fill="#121212"/>
+      <rect x="16" y="16" width="480" height="480" rx="99" fill="none" stroke="#2e7d32" stroke-width="8" opacity="0.4"/>
+      <circle cx="256" cy="256" r="170" fill="none" stroke="#4caf50" stroke-width="32" stroke-dasharray="24 16"/>
+      <path d="M150 256 C150 160, 362 160, 362 256 C362 352, 150 352, 150 256 Z" fill="none" stroke="#1565c0" stroke-width="20" opacity="0.8"/>
+      <circle cx="256" cy="256" r="85" fill="#ffffff"/>
+      <circle cx="235" cy="230" r="5" fill="#d6d6d6"/>
+      <circle cx="265" cy="225" r="5" fill="#d6d6d6"/>
+      <circle cx="290" cy="245" r="5" fill="#d6d6d6"/>
+      <circle cx="225" cy="255" r="5" fill="#d6d6d6"/>
+      <circle cx="255" cy="260" r="5" fill="#d6d6d6"/>
+      <circle cx="280" cy="275" r="5" fill="#d6d6d6"/>
+      <circle cx="235" cy="280" r="5" fill="#d6d6d6"/>
+      <circle cx="260" cy="290" r="5" fill="#d6d6d6"/>
+      <g transform="rotate(-45 256 256)">
+        <rect x="246" y="110" width="20" height="292" rx="10" fill="#4caf50"/>
+        <rect x="226" y="110" width="60" height="24" rx="6" fill="#2e7d32"/>
+        <rect x="226" y="378" width="60" height="24" rx="6" fill="#2e7d32"/>
+      </g>
+    </svg>`;
+
+    const img = new Image();
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 180;
+      canvas.height = 180;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, 180, 180);
+      const pngUrl = canvas.toDataURL('image/png');
+      document.getElementById('dynamic-apple-touch-icon').href = pngUrl;
+    };
+  })();
+</script>
+
+<title>PTP Golf Workout Tracker V4</title>
+<style>
+  :root {
+    --bg-color: #121212;
+    --card-bg: #1e1e1e;
+    --accent: #2e7d32;
+    --accent-light: #4caf50;
+    --gold: #ffb300;
+    --blue: #1565c0;
+    --text-main: #ffffff;
+    --text-sub: #b0b0b0;
+    --border: #333333;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    margin: 0;
+    padding: 12px;
+    padding-bottom: 90px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1 {
+    font-size: 18px;
+    text-align: center;
+    color: var(--accent-light);
+    margin: 4px 0 12px 0;
+  }
+
+  .parent-tabs {
+    display: flex;
+    background: #000000;
+    border-radius: 12px;
+    padding: 3px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border);
+  }
+
+  .parent-btn {
+    flex: 1;
+    padding: 10px 0;
+    border: none;
+    background: transparent;
+    color: var(--text-sub);
+    font-weight: 700;
+    font-size: 13px;
+    border-radius: 9px;
+  }
+
+  .parent-btn.active {
+    background: var(--accent);
+    color: white;
+  }
+
+  .sub-tabs {
+    display: flex;
+    background: var(--card-bg);
+    padding: 3px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    overflow-x: auto;
+  }
+
+  .sub-btn {
+    flex: 1;
+    min-width: 60px;
+    padding: 7px 2px;
+    border: none;
+    background: transparent;
+    color: var(--text-sub);
+    font-weight: 600;
+    font-size: 11px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+
+  .sub-btn.active {
+    background: #333333;
+    color: var(--accent-light);
+    font-weight: 700;
+  }
+
+  .session-meta {
+    background: var(--card-bg);
+    padding: 12px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .input-group label {
+    font-size: 10px;
+    color: var(--text-sub);
+    margin-bottom: 3px;
+    text-transform: uppercase;
+  }
+
+  .input-group input, .input-group select {
+    background: #2a2a2a;
+    border: 1px solid var(--border);
+    color: white;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+
+  .exercise-card, .analytics-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+  }
+
+  .ex-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 4px;
+  }
+
+  .ex-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: white;
+  }
+
+  .ex-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .badge-door { background: var(--blue); color: white; }
+  .badge-platform { background: var(--accent); color: white; }
+  .badge-cardio { background: #d32f2f; color: white; }
+
+  .ex-meta {
+    font-size: 11px;
+    color: var(--accent-light);
+    margin-bottom: 4px;
+  }
+
+  .ex-desc {
+    font-size: 11px;
+    color: var(--text-sub);
+    font-style: italic;
+    margin-bottom: 8px;
+    line-height: 1.3;
+  }
+
+  .last-time-box {
+    background: #252525;
+    border-left: 3px solid var(--accent-light);
+    padding: 4px 8px;
+    font-size: 10px;
+    color: #d0d0d0;
+    border-radius: 0 4px 4px 0;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .pr-tag {
+    color: var(--gold);
+    font-weight: bold;
+  }
+
+  .suggest-tag {
+    color: #81c784;
+    font-size: 10px;
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+
+  .set-row {
+    display: grid;
+    grid-template-columns: 24px 1fr 50px 55px 40px;
+    gap: 5px;
+    align-items: center;
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #2a2a2a;
+  }
+
+  .plank-row {
+    display: grid;
+    grid-template-columns: 24px 1fr 70px 40px;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #2a2a2a;
+  }
+
+  .set-num {
+    font-weight: bold;
+    font-size: 12px;
+    color: var(--text-sub);
+    text-align: center;
+  }
+
+  .band-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+  }
+
+  .band-grid select {
+    background: #2a2a2a;
+    border: 1px solid #444;
+    color: white;
+    font-size: 10px;
+    padding: 3px;
+    border-radius: 4px;
+  }
+
+  .reps-input input {
+    width: 100%;
+    background: #2a2a2a;
+    border: 1px solid #444;
+    color: white;
+    text-align: center;
+    padding: 5px 0;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .calc-weight {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent-light);
+    text-align: center;
+  }
+
+  .log-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 6px 0;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 11px;
+  }
+
+  .plank-btn {
+    background: #2e7d32;
+    color: white;
+    border: none;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 11px;
+    width: 100%;
+  }
+
+  .plank-btn.active-timer {
+    background: #d32f2f;
+  }
+
+  .log-btn.logged {
+    background: #444;
+    color: #888;
+  }
+
+  .history-card {
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border);
+  }
+
+  .history-header {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    font-size: 13px;
+    color: var(--accent-light);
+    margin-bottom: 6px;
+  }
+
+  .history-item {
+    font-size: 11px;
+    color: #ccc;
+    padding: 4px 0;
+    border-bottom: 1px solid #2a2a2a;
+  }
+
+  .timer-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #1b5e20;
+    color: white;
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.5);
+    z-index: 1000;
+  }
+
+  .timer-text {
+    font-weight: bold;
+    font-size: 13px;
+  }
+
+  .timer-controls button {
+    background: white;
+    color: #1b5e20;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 11px;
+    margin-left: 4px;
+  }
+
+  .action-btn-group {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .export-btn, .backup-btn {
+    flex: 1;
+    background: #333;
+    color: white;
+    border: 1px solid var(--border);
+    padding: 10px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 12px;
+  }
+
+  canvas {
+    width: 100%;
+    height: 180px;
+    background: #181818;
+    border-radius: 8px;
+    margin-top: 8px;
+  }
+
+  #file-input { display: none; }
+</style>
+</head>
+<body>
+
+<h1>PTP Golf Workout Tracker</h1>
+
+<div class="parent-tabs">
+  <button class="parent-btn active" id="parent-exercises" onclick="switchParentTab('Exercises')">Exercises</button>
+  <button class="parent-btn" id="parent-history" onclick="switchParentTab('History')">History</button>
+  <button class="parent-btn" id="parent-analytics" onclick="switchParentTab('Analytics')">Analytics</button>
+</div>
+
+<div id="view-exercises">
+  <div class="sub-tabs">
+    <button class="sub-btn active" id="sub-day1" onclick="switchSubTab('Day 1')">Day 1</button>
+    <button class="sub-btn" id="sub-day2" onclick="switchSubTab('Day 2')">Day 2</button>
+    <button class="sub-btn" id="sub-day3" onclick="switchSubTab('Day 3')">Day 3</button>
+    <button class="sub-btn" id="sub-elliptical" onclick="switchSubTab('Elliptical')">Elliptical</button>
+    <button class="sub-btn" id="sub-warmup" onclick="switchSubTab('Warm-Up')">Warm-Up</button>
+  </div>
+
+  <div id="exercise-subview">
+    <div class="session-meta" id="resistance-meta">
+      <div class="input-group">
+        <label>Date</label>
+        <input type="date" id="session-date">
+      </div>
+      <div class="input-group">
+        <label>Readiness (1-5)</label>
+        <select id="session-readiness">
+          <option value="5">5 - Peak Energy</option>
+          <option value="4" selected>4 - Good</option>
+          <option value="3">3 - Moderate</option>
+          <option value="2">2 - Low Energy</option>
+          <option value="1">1 - Fatigued</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>Apple Active kcal</label>
+        <input type="number" id="apple-kcal" placeholder="e.g. 320">
+      </div>
+      <div class="input-group">
+        <label>Apple Avg HR (BPM)</label>
+        <input type="number" id="apple-hr" placeholder="e.g. 118">
+      </div>
+    </div>
+
+    <div id="exercise-container"></div>
+  </div>
+</div>
+
+<div id="view-history" style="display:none;">
+  <div id="history-container"></div>
+  <div class="action-btn-group">
+    <button class="export-btn" onclick="exportCSV()">Export CSV</button>
+    <button class="backup-btn" onclick="exportJSON()">Backup JSON</button>
+    <button class="backup-btn" onclick="document.getElementById('file-input').click()">Restore</button>
+  </div>
+  <input type="file" id="file-input" accept=".json" onchange="importJSON(event)">
+</div>
+
+<div id="view-analytics" style="display:none;">
+  <div class="analytics-card">
+    <div class="ex-title" style="font-size:14px; color:var(--accent-light);">Total Session Volume Progress (kg)</div>
+    <canvas id="volumeChart"></canvas>
+  </div>
+
+  <div class="analytics-card">
+    <div class="ex-title" style="font-size:14px; color:#64b5f6;">Elliptical Cardio History</div>
+    <canvas id="cardioChart"></canvas>
+  </div>
+</div>
+
+<div class="timer-banner" id="timer-banner" style="display:none;">
+  <span class="timer-text" id="timer-display">Rest Timer: 30s</span>
+  <div class="timer-controls">
+    <button onclick="addTimerTime(30)">+30s</button>
+    <button onclick="stopTimer()">Dismiss</button>
+  </div>
+</div>
+
+<script>
+const BANDS = {
+  "None": 0.0,
+  "Pink": 2.2,
+  "Lime": 5.5,
+  "Green": 7.5,
+  "Orange": 12.4,
+  "Blue": 14.9,
+  "Black": 22.4
+};
+
+const EXERCISES = {
+  "Day 1": [
+    { name: "High-to-Low Lat Row", setup: "Door Anchor (High)", attachment: "Handles", mult: 1.0, zone: "door", desc: "Pull handles to hips driving elbows back. Lat strength for backswing extension and post-impact pull power." },
+    { name: "Standing Chest Press / Fly", setup: "Door Anchor (Mid)", attachment: "Handles", mult: 1.0, zone: "door", desc: "Press handles forward at chest height in staggered stance. Lead-arm pushing force through downswing impact." },
+    { name: "Standing Glute Kickback", setup: "Door Anchor (Low)", attachment: "Ankle Straps", mult: 1.0, zone: "door", desc: "Extend leg backward using glute without arching back. Hip extension and glute drive for trail-leg push." },
+    { name: "Front Squat", setup: "Platform", attachment: "Resistance Bar", mult: 2.0, zone: "platform", desc: "Bar in front rack; squat with hips down and chest up. Vertical ground-reaction force off the tee." },
+    { name: "Shoulder Press Front", setup: "Platform", attachment: "Resistance Bar", mult: 2.0, zone: "platform", desc: "Press bar overhead from collarbone with braced core. Shoulder stability for higher full-finish follow-throughs." },
+    { name: "Deadlift / RDL", setup: "Platform", attachment: "Bar (Pulley Loop)", mult: 2.0, zone: "platform", desc: "Hinge at hips with flat back; drive hips forward to stand. Posterior chain strength and lower back protection." },
+    { name: "Alternating Bicep Curl", setup: "Platform", attachment: "Power Handles", mult: 1.0, zone: "platform", desc: "Curl handle to shoulder with elbow fixed at side. Elbow joint health against high deceleration forces." },
+    { name: "Plank Finisher", setup: "Mat", attachment: "Bodyweight", mult: 0.0, zone: "door", isPlank: true, desc: "Hold rigid plank on forearms with core and glutes braced. Anti-extension endurance to maintain spine angle." }
+  ],
+  "Day 2": [
+    { name: "Wide Rear Delt Row", setup: "Door Anchor (Mid)", attachment: "Handles", mult: 1.0, zone: "door", desc: "Uncrossed bands; pull elbows wide at shoulder height. Posture correction and upper back stability in turn." },
+    { name: "Alternating Crossover Punch", setup: "Door Anchor (Mid)", attachment: "Handles", mult: 1.0, zone: "door", desc: "Athletic stance; punch across with hip pivot. Rotational core power and hip-to-shoulder separation." },
+    { name: "Overhead Tricep Extension", setup: "Door Anchor (High)", attachment: "Handles", mult: 1.0, zone: "door", desc: "Extend arms forward/up while keeping upper arms fixed. Lead-arm triceps strength for wide swing arc." },
+    { name: "Back Squat", setup: "Platform", attachment: "Resistance Bar", mult: 2.0, zone: "platform", desc: "Bar on upper back; squat deep and drive through mid-foot. Quad/hip strength to hold spine angles through 18 holes." },
+    { name: "Bent Over Row", setup: "Platform", attachment: "Resistance Bar", mult: 2.0, zone: "platform", desc: "Hinge 45 degrees; pull bar to navel squeezing scapulae. Mid-back endurance needed to hold S-posture." },
+    { name: "Conventional Bicep Curl", setup: "Platform", attachment: "Resistance Bar", mult: 2.0, zone: "platform", desc: "Underhand grip; curl bar to chest keeping elbows pinned. Forearm/flexor power for controlled face angle." },
+    { name: "Lateral Raise / Front Raise", setup: "Platform", attachment: "Power Handles", mult: 1.0, zone: "platform", desc: "Raise handles to side up to shoulder level. Delt strength to control club path and absorb torque." },
+    { name: "Plank Finisher", setup: "Mat", attachment: "Bodyweight", mult: 0.0, zone: "door", isPlank: true, desc: "Hold rigid plank on forearms with core and glutes braced. Anti-extension endurance to maintain spine angle." }
+  ],
+  "Day 3": [
+    { name: "Standing Hip Abduction", setup: "Door Anchor (Low)", attachment: "Ankle Straps", mult: 1.0, zone: "door", desc: "Raise outer leg sideways away from body. Gluteus medius activation for backswing weight shift." },
+    { name: "Thruster (Squat to Press)", setup: "Platform", attachment: "Resistance Bar", mult: 2.0, zone: "platform", desc: "Front squat directly into overhead press in one movement. Lower-to-upper body dynamic power transmission." },
+    { name: "Good Morning", setup: "Platform", attachment: "Resistance Bar", mult: 2.0, zone: "platform", desc: "Bar on traps; hinge forward at hips with knees soft. Lumbar/hamstring resilience against rotational shear." },
+    { name: "Back Squat to Calf Lift", setup: "Platform", attachment: "Resistance Bar", mult: 2.0, zone: "platform", desc: "Back squat into explosive heel raise on toes at top. Ankle power and triple-extension downswing drive." },
+    { name: "Wide Grip Bicep Curl", setup: "Platform", attachment: "Resistance Bar", mult: 2.0, zone: "platform", desc: "Wide underhand grip; curl bar upward to chest. Fortifies inner bicep head and trail-arm control." },
+    { name: "Bent Over Crossover Lat Raise", setup: "Platform", attachment: "Power Handles", mult: 1.0, zone: "platform", desc: "Hinge forward with handles crossed at base; raise arms wide. Rear delt/rhomboid strength to preserve swing width." },
+    { name: "Single Arm / Arnold Press", setup: "Platform", attachment: "Power Handles", mult: 1.0, zone: "platform", desc: "Press handle overhead while rotating palm inward to forward. Corrects left/right imbalances for balanced swing torque." },
+    { name: "Plank Finisher", setup: "Mat", attachment: "Bodyweight", mult: 0.0, zone: "door", isPlank: true, desc: "Hold rigid plank on forearms with core and glutes braced. Anti-extension endurance to maintain spine angle." }
+  ]
+};
+
+const WARMUP_ROUTINE = [
+  { name: "Thoracic Spine Windmills", duration: "45s", desc: "Side-lying T-spine rotation to unlock upper back turn and shoulder turn." },
+  { name: "Band Pull-Aparts", duration: "45s", desc: "Light band across chest squeezing rear delts and mid-traps for posture." },
+  { name: "Dynamic Hip Opener / 90-90", duration: "45s", desc: "Rotate hips internal to external to prime pelvic rotation." },
+  { name: "Glute Bridge & Reach", duration: "45s", desc: "Drive hips up and reach arm over opposite shoulder to fire glutes." },
+  { name: "Standing Leg Swings", duration: "30s", desc: "Front-to-back and side-to-side swings for hip joint mobility." }
+];
+
+window.currentParentTab = "Exercises";
+let currentSubTab = "Day 1";
+let restTimer = null;
+let timerSeconds = 0;
+
+let plankTimer = null;
+let plankSeconds = 0;
+let activePlankKey = null;
+
+document.getElementById('session-date').value = new Date().toISOString().split('T')[0];
+
+function switchParentTab(tab) {
+  window.currentParentTab = tab;
+  document.querySelectorAll('.parent-btn').forEach(btn => btn.classList.remove('active'));
+  document.getElementById(`parent-${tab.toLowerCase()}`).classList.add('active');
+
+  document.getElementById('view-exercises').style.display = tab === 'Exercises' ? 'block' : 'none';
+  document.getElementById('view-history').style.display = tab === 'History' ? 'block' : 'none';
+  document.getElementById('view-analytics').style.display = tab === 'Analytics' ? 'block' : 'none';
+
+  if (tab === 'History') renderHistory();
+  if (tab === 'Analytics') renderAnalytics();
+}
+
+function switchSubTab(subTab) {
+  currentSubTab = subTab;
+  document.querySelectorAll('.sub-btn').forEach(btn => btn.classList.remove('active'));
+  
+  const cleanId = subTab.toLowerCase().replace(' ', '').replace('-', '');
+  const targetBtn = document.getElementById(`sub-${cleanId}`);
+  if (targetBtn) targetBtn.classList.add('active');
+
+  renderSubView();
+}
+
+function getHistory() {
+  return JSON.parse(localStorage.getItem('ptp_workout_history') || '[]');
+}
+
+function getMaxWeightPR(exName) {
+  const history = getHistory();
+  const entries = history.filter(h => h.exercise === exName);
+  if (!entries.length) return 0;
+  return Math.max(...entries.map(e => parseFloat(e.weight || 0)));
+}
+
+function renderSubView() {
+  const container = document.getElementById('exercise-container');
+  const metaBox = document.getElementById('resistance-meta');
+  container.innerHTML = '';
+
+  if (currentSubTab === 'Warm-Up') {
+    metaBox.style.display = 'none';
+    let html = '<div class="exercise-card"><div class="ex-title" style="color:var(--accent-light);">5-Minute Golf Mobility Warm-Up</div>';
+    WARMUP_ROUTINE.forEach((w, idx) => {
+      html += `
+        <div style="padding:8px 0; border-bottom:1px solid #2a2a2a;">
+          <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:13px; color:white;">
+            <span>${idx + 1}. ${w.name}</span>
+            <span style="color:var(--accent-light); font-size:11px;">${w.duration}</span>
+          </div>
+          <div style="font-size:11px; color:var(--text-sub); margin-top:3px;">${w.desc}</div>
+        </div>
+      `;
+    });
+    html += '<button class="export-btn" style="margin-top:12px;" onclick="startRestTimer(45)">Start 45s Stretch Timer</button></div>';
+    container.innerHTML = html;
+    return;
+  }
+
+  if (currentSubTab === 'Elliptical') {
+    metaBox.style.display = 'none';
+
+    let levelOptions = '';
+    for (let lvl = 1; lvl <= 16; lvl++) {
+      levelOptions += `<option value="${lvl}" ${lvl === 4 ? 'selected' : ''}>Level ${lvl}</option>`;
+    }
+
+    container.innerHTML = `
+      <div class="exercise-card">
+        <div class="ex-header">
+          <div class="ex-title">Infiniti VG30 Elliptical Session</div>
+          <span class="ex-badge badge-cardio">Cardio</span>
+        </div>
+        <div class="session-meta" style="margin-top:10px; border:none; padding:0;">
+          <div class="input-group">
+            <label>Date</label>
+            <input type="date" id="cardio-date" value="${new Date().toISOString().split('T')[0]}">
+          </div>
+          <div class="input-group">
+            <label>Duration (mins)</label>
+            <input type="number" id="cardio-time" placeholder="e.g. 35">
+          </div>
+          <div class="input-group">
+            <label>Distance (km)</label>
+            <input type="number" step="0.1" id="cardio-dist" placeholder="e.g. 4.2">
+          </div>
+          <div class="input-group">
+            <label>Active Calories</label>
+            <input type="number" id="cardio-kcal" placeholder="e.g. 280">
+          </div>
+          <div class="input-group">
+            <label>Avg HR (BPM)</label>
+            <input type="number" id="cardio-hr" placeholder="e.g. 132">
+          </div>
+          <div class="input-group">
+            <label>Resistance Level (1-16)</label>
+            <select id="cardio-level">
+              ${levelOptions}
+            </select>
+          </div>
+          <div class="input-group" style="grid-column: span 2;">
+            <label>Pre-Programmed Workout</label>
+            <select id="cardio-prog">
+              <option value="0 - Custom / Manual">0 - Custom / Manual</option>
+              <option value="P1 - Rolling Blocks">P1 - Rolling Blocks</option>
+              <option value="P2 - Double Hill / Valley">P2 - Double Hill / Valley</option>
+              <option value="P3 - Triple Peak">P3 - Triple Peak</option>
+              <option value="P4 - Single Peak / Pyramid">P4 - Single Peak / Pyramid</option>
+              <option value="P5 - Steady Ramp">P5 - Steady Ramp</option>
+              <option value="P6 - Double Pyramid">P6 - Double Pyramid</option>
+              <option value="P7 - Plateau">P7 - Plateau</option>
+              <option value="P8 - High-Low Blocks">P8 - High-Low Blocks</option>
+              <option value="P9 - Step Mountain">P9 - Step Mountain</option>
+              <option value="P10 - Center Peak">P10 - Center Peak</option>
+              <option value="P11 - High Steady Block">P11 - High Steady Block</option>
+              <option value="P12 - High Intensity Intervals">P12 - High Intensity Intervals</option>
+            </select>
+          </div>
+        </div>
+        <button class="export-btn" style="margin-top:10px; background:var(--accent);" onclick="logElliptical()">Log Elliptical Workout</button>
+      </div>
+    `;
+    return;
+  }
+
+  metaBox.style.display = 'grid';
+
+  EXERCISES[currentSubTab].forEach((ex, exIdx) => {
+    const card = document.createElement('div');
+    card.className = 'exercise-card';
+    const badgeClass = ex.zone === 'door' ? 'badge-door' : 'badge-platform';
+
+    let setsHtml = '';
+    for (let setNum = 1; setNum <= 3; setNum++) {
+      const history = getHistory();
+      const lastEntry = [...history].reverse().find(h => h.exercise === ex.name && h.setNum == setNum);
+      const pr = getMaxWeightPR(ex.name);
+      
+      let lastText = lastEntry ? (ex.isPlank ? `Last: ${lastEntry.reps} secs` : `Last: ${[lastEntry.b1, lastEntry.b2, lastEntry.b3, lastEntry.b4].filter(b=>b&&b!=='None').join('+')||'BW'} @ ${lastEntry.reps} reps`) : 'First Session';
+      let prTag = pr > 0 ? `<span class="pr-tag">PR: ${pr}kg</span>` : '';
+      let suggestTag = (lastEntry && parseInt(lastEntry.reps) >= 12 && !ex.isPlank) ? `<div class="suggest-tag">💡 Target hit last time: Try adding +Pink (2.2kg) or +1 rep</div>` : '';
+
+      if (ex.isPlank) {
+        setsHtml += `
+          <div class="last-time-box">
+            <span>${lastText}</span>
+          </div>
+          <div class="plank-row" id="row-${exIdx}-${setNum}">
+            <div class="set-num">S${setNum}</div>
+            <div>
+              <button class="plank-btn" id="plank-timer-btn-${exIdx}-${setNum}" onclick="togglePlankTimer(${exIdx}, ${setNum})">Start Plank Timer</button>
+            </div>
+            <div class="reps-input">
+              <input type="number" id="reps-${exIdx}-${setNum}" placeholder="Secs" value="45">
+            </div>
+            <button class="log-btn" id="btn-${exIdx}-${setNum}" onclick="logSet('${ex.name}', ${exIdx}, ${setNum}, ${ex.mult}, true)">Log</button>
+          </div>
+        `;
+      } else {
+        setsHtml += `
+          <div class="last-time-box">
+            <span>${lastText}</span>
+            ${prTag}
+          </div>
+          ${suggestTag}
+          <div class="set-row" id="row-${exIdx}-${setNum}">
+            <div class="set-num">S${setNum}</div>
+            <div class="band-grid">
+              <select onchange="recalcRow(${exIdx}, ${setNum})" id="b1-${exIdx}-${setNum}">${renderBandOptions()}</select>
+              <select onchange="recalcRow(${exIdx}, ${setNum})" id="b2-${exIdx}-${setNum}">${renderBandOptions()}</select>
+              <select onchange="recalcRow(${exIdx}, ${setNum})" id="b3-${exIdx}-${setNum}">${renderBandOptions()}</select>
+              <select onchange="recalcRow(${exIdx}, ${setNum})" id="b4-${exIdx}-${setNum}">${renderBandOptions()}</select>
+            </div>
+            <div class="reps-input">
+              <input type="number" id="reps-${exIdx}-${setNum}" placeholder="Reps" value="12">
+            </div>
+            <div class="calc-weight" id="wt-${exIdx}-${setNum}">0.0 kg</div>
+            <button class="log-btn" id="btn-${exIdx}-${setNum}" onclick="logSet('${ex.name}', ${exIdx}, ${setNum}, ${ex.mult}, false)">Log</button>
+          </div>
+        `;
+      }
+    }
+
+    card.innerHTML = `
+      <div class="ex-header">
+        <div class="ex-title">${ex.name}</div>
+        <span class="ex-badge ${badgeClass}">${ex.setup}</span>
+      </div>
+      <div class="ex-meta">${ex.attachment} | Multiplier: ${ex.mult}x</div>
+      <div class="ex-desc">${ex.desc}</div>
+      ${setsHtml}
+    `;
+
+    container.appendChild(card);
+    for (let setNum = 1; setNum <= 3; setNum++) {
+      if (!ex.isPlank) recalcRow(exIdx, setNum);
+    }
+  });
+}
+
+function renderBandOptions() {
+  return Object.keys(BANDS).map(b => `<option value="${b}">${b}</option>`).join('');
+}
+
+function recalcRow(exIdx, setNum) {
+  const b1 = document.getElementById(`b1-${exIdx}-${setNum}`).value;
+  const b2 = document.getElementById(`b2-${exIdx}-${setNum}`).value;
+  const b3 = document.getElementById(`b3-${exIdx}-${setNum}`).value;
+  const b4 = document.getElementById(`b4-${exIdx}-${setNum}`).value;
+  const mult = EXERCISES[currentSubTab][exIdx].mult;
+
+  const totalWt = (BANDS[b1] + BANDS[b2] + BANDS[b3] + BANDS[b4]) * mult;
+  document.getElementById(`wt-${exIdx}-${setNum}`).innerText = totalWt.toFixed(1) + ' kg';
+}
+
+function togglePlankTimer(exIdx, setNum) {
+  const key = `${exIdx}-${setNum}`;
+  const btn = document.getElementById(`plank-timer-btn-${key}`);
+  const input = document.getElementById(`reps-${key}`);
+
+  if (activePlankKey === key && plankTimer) {
+    clearInterval(plankTimer);
+    plankTimer = null;
+    activePlankKey = null;
+    btn.classList.remove('active-timer');
+    btn.innerText = 'Start Plank Timer';
+    input.value = plankSeconds;
+    
+    logSet('Plank Finisher', exIdx, setNum, 0.0, true);
+  } else {
+    if (plankTimer) clearInterval(plankTimer);
+
+    plankSeconds = 0;
+    activePlankKey = key;
+    btn.classList.add('active-timer');
+    btn.innerText = `Stop & Record (${plankSeconds}s)`;
+
+    plankTimer = setInterval(() => {
+      plankSeconds++;
+      btn.innerText = `Stop & Record (${plankSeconds}s)`;
+    }, 1000);
+  }
+}
+
+function saveLogToCloud(logEntry) {
+  logEntry.timestamp = Date.now();
+  if (window.addDoc && window.dbCollection) {
+    window.addDoc(window.dbCollection, logEntry).catch(e => console.warn('Cloud sync queued offline:', e));
+  }
+}
+
+function logSet(exName, exIdx, setNum, mult, isPlank) {
+  const date = document.getElementById('session-date').value;
+  const readiness = document.getElementById('session-readiness').value;
+  const kcal = document.getElementById('apple-kcal').value || '';
+  const hr = document.getElementById('apple-hr').value || '';
+  const reps = document.getElementById(`reps-${exIdx}-${setNum}`).value;
+
+  let b1 = "None", b2 = "None", b3 = "None", b4 = "None", weight = 0;
+  if (!isPlank) {
+    b1 = document.getElementById(`b1-${exIdx}-${setNum}`).value;
+    b2 = document.getElementById(`b2-${exIdx}-${setNum}`).value;
+    b3 = document.getElementById(`b3-${exIdx}-${setNum}`).value;
+    b4 = document.getElementById(`b4-${exIdx}-${setNum}`).value;
+    weight = ((BANDS[b1] + BANDS[b2] + BANDS[b3] + BANDS[b4]) * mult).toFixed(1);
+  }
+
+  const currentMax = getMaxWeightPR(exName);
+  const isPR = parseFloat(weight) > currentMax && !isPlank;
+
+  const logEntry = { type: 'resistance', date, day: currentSubTab, readiness, exercise: exName, setNum, b1, b2, b3, b4, reps, weight, kcal, hr };
+
+  const history = getHistory();
+  history.push(logEntry);
+  localStorage.setItem('ptp_workout_history', JSON.stringify(history));
+
+  saveLogToCloud(logEntry);
+
+  const btn = document.getElementById(`btn-${exIdx}-${setNum}`);
+  btn.classList.add('logged');
+  btn.innerText = isPR ? '🏆 PR!' : '✓';
+
+  startRestTimer(30);
+}
+
+function logElliptical() {
+  const date = document.getElementById('cardio-date').value;
+  const duration = document.getElementById('cardio-time').value || 0;
+  const distance = document.getElementById('cardio-dist').value || 0;
+  const kcal = document.getElementById('cardio-kcal').value || 0;
+  const hr = document.getElementById('cardio-hr').value || 0;
+  const level = document.getElementById('cardio-level').value || 1;
+  const program = document.getElementById('cardio-prog').value;
+
+  if (!duration) return alert("Please enter workout duration!");
+
+  const logEntry = { type: 'elliptical', date, day: 'Elliptical', exercise: 'Elliptical Trainer', duration, distance, kcal, hr, level, program };
+
+  const history = getHistory();
+  history.push(logEntry);
+  localStorage.setItem('ptp_workout_history', JSON.stringify(history));
+
+  saveLogToCloud(logEntry);
+
+  alert('Elliptical session logged successfully & synced!');
+}
+
+function renderHistory() {
+  const history = getHistory();
+  const container = document.getElementById('history-container');
+  if (history.length === 0) {
+    container.innerHTML = '<div style="text-align:center; color:#888; margin-top:30px;">No workout history logged yet.</div>';
+    return;
+  }
+
+  const sessions = {};
+  history.forEach(h => {
+    const key = `${h.date} - ${h.day}`;
+    if (!sessions[key]) sessions[key] = [];
+    sessions[key].push(h);
+  });
+
+  let html = '';
+  Object.keys(sessions).reverse().forEach(sessionKey => {
+    const sets = sessions[sessionKey];
+    const meta = sets[0];
+
+    if (meta.type === 'elliptical') {
+      html += `
+        <div class="history-card" style="border-left: 3px solid #d32f2f;">
+          <div class="history-header">
+            <span>${sessionKey}</span>
+            <span style="color:#ef5350;">${meta.duration} mins | ${meta.distance} km</span>
+          </div>
+          <div style="font-size:11px; color:#ccc;">
+            ${meta.program} (Lvl ${meta.level}) | ${meta.kcal} kcal | ${meta.hr} BPM
+          </div>
+        </div>
+      `;
+    } else {
+      let totalVol = 0;
+      sets.forEach(s => totalVol += (parseFloat(s.weight || 0) * parseInt(s.reps || 0)));
+
+      html += `
+        <div class="history-card">
+          <div class="history-header">
+            <span>${sessionKey}</span>
+            <span>Vol: ${totalVol.toFixed(0)} kg</span>
+          </div>
+          <div style="font-size:10px; color:#888; margin-bottom:6px;">
+            Readiness: ${meta.readiness}/5 | ${meta.kcal ? meta.kcal + ' kcal' : ''} ${meta.hr ? '| ' + meta.hr + ' BPM' : ''}
+          </div>
+      `;
+
+      sets.forEach(s => {
+        const bands = [s.b1, s.b2, s.b3, s.b4].filter(b => b && b !== 'None').join('+');
+        html += `
+          <div class="history-item">
+            <b>${s.exercise}</b> (Set ${s.setNum}): ${bands || 'BW'} @ ${s.reps} ${s.exercise === 'Plank Finisher' ? 'secs' : 'reps'} (${s.weight}kg)
+          </div>
+        `;
+      });
+      html += `</div>`;
+    }
+  });
+
+  container.innerHTML = html;
+}
+
+function renderAnalytics() {
+  const history = getHistory();
+  
+  const volCanvas = document.getElementById('volumeChart');
+  const vctx = volCanvas.getContext('2d');
+  vctx.clearRect(0, 0, volCanvas.width, volCanvas.height);
+  
+  const sessions = {};
+  history.filter(h => h.type !== 'elliptical').forEach(h => {
+    const date = h.date;
+    if (!sessions[date]) sessions[date] = 0;
+    sessions[date] += (parseFloat(h.weight || 0) * parseInt(h.reps || 0));
+  });
+
+  const dates = Object.keys(sessions).slice(-7);
+  const vols = dates.map(d => sessions[d]);
+
+  if (vols.length > 0) {
+    const maxV = Math.max(...vols, 100);
+    vctx.strokeStyle = '#4caf50';
+    vctx.lineWidth = 3;
+    vctx.beginPath();
+    dates.forEach((d, i) => {
+      const x = (i / Math.max(dates.length - 1, 1)) * (volCanvas.width - 40) + 20;
+      const y = volCanvas.height - 30 - (vols[i] / maxV) * (volCanvas.height - 50);
+      if (i === 0) vctx.moveTo(x, y);
+      else vctx.lineTo(x, y);
+      vctx.fillStyle = '#ffffff';
+      vctx.fillRect(x - 3, y - 3, 6, 6);
+    });
+    vctx.stroke();
+  } else {
+    vctx.fillStyle = '#888';
+    vctx.font = '12px sans-serif';
+    vctx.fillText('Log workout sessions to unlock volume trends', 20, 90);
+  }
+
+  const cardioCanvas = document.getElementById('cardioChart');
+  const cctx = cardioCanvas.getContext('2d');
+  cctx.clearRect(0, 0, cardioCanvas.width, cardioCanvas.height);
+  const cardioEntries = history.filter(h => h.type === 'elliptical').slice(-7);
+  
+  if (cardioEntries.length > 0) {
+    const maxTime = Math.max(...cardioEntries.map(c => parseFloat(c.duration || 0)), 30);
+    cctx.strokeStyle = '#64b5f6';
+    cctx.lineWidth = 3;
+    cctx.beginPath();
+    cardioEntries.forEach((c, i) => {
+      const x = (i / Math.max(cardioEntries.length - 1, 1)) * (cardioCanvas.width - 40) + 20;
+      const y = cardioCanvas.height - 30 - (parseFloat(c.duration) / maxTime) * (cardioCanvas.height - 50);
+      if (i === 0) cctx.moveTo(x, y);
+      else cctx.lineTo(x, y);
+      cctx.fillStyle = '#ffffff';
+      cctx.fillRect(x - 3, y - 3, 6, 6);
+    });
+    cctx.stroke();
+  } else {
+    cctx.fillStyle = '#888';
+    cctx.font = '12px sans-serif';
+    cctx.fillText('Log elliptical sessions to unlock cardio trends', 20, 90);
+  }
+}
+
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.3);
+  } catch(e){}
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+}
+
+function startRestTimer(seconds) {
+  clearInterval(restTimer);
+  timerSeconds = seconds;
+  document.getElementById('timer-banner').style.display = 'flex';
+  updateTimerDisplay();
+
+  restTimer = setInterval(() => {
+    timerSeconds--;
+    updateTimerDisplay();
+    if (timerSeconds <= 0) {
+      playBeep();
+      stopTimer();
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  document.getElementById('timer-display').innerText = `Rest Timer: ${timerSeconds}s`;
+}
+
+function addTimerTime(secs) {
+  timerSeconds += secs;
+  updateTimerDisplay();
+}
+
+function stopTimer() {
+  clearInterval(restTimer);
+  document.getElementById('timer-banner').style.display = 'none';
+}
+
+function exportCSV() {
+  const history = getHistory();
+  if (history.length === 0) return alert("No history logged yet!");
+
+  let csv = "Type,Date,Workout Day,Readiness,Exercise Name,Set #,Band 1,Band 2,Band 3,Band 4,Reps/Secs/Duration,Calculated Wt (kg)/Dist (km),Active kcal,Avg HR,Program/Level\n";
+  history.forEach(h => {
+    if (h.type === 'elliptical') {
+      csv += `Elliptical,${h.date},${h.day},N/A,"${h.exercise}",1,N/A,N/A,N/A,N/A,${h.duration},${h.distance},${h.kcal},${h.hr},"${h.program} (Lvl ${h.level})"\n`;
+    } else {
+      csv += `Resistance,${h.date},${h.day},${h.readiness},"${h.exercise}",${h.setNum},${h.b1},${h.b2},${h.b3},${h.b4},${h.reps},${h.weight},${h.kcal},${h.hr},N/A\n`;
+    }
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.setAttribute('href', url);
+  a.setAttribute('download', `PTP_Workout_History_${new Date().toISOString().split('T')[0]}.csv`);
+  a.click();
+}
+
+function exportJSON() {
+  const history = getHistory();
+  const blob = new Blob([JSON.stringify(history, null, 2)], { type: 'application/json' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.setAttribute('href', url);
+  a.setAttribute('download', `PTP_Workout_Backup_${new Date().toISOString().split('T')[0]}.json`);
+  a.click();
+}
+
+function importJSON(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      const data = JSON.parse(evt.target.result);
+      if (Array.isArray(data)) {
+        localStorage.setItem('ptp_workout_history', JSON.stringify(data));
+        if (Array.isArray(data)) {
+          data.forEach(item => saveLogToCloud(item));
+        }
+        alert('History restored & synced to cloud!');
+        if (window.currentParentTab === 'History') renderHistory();
+      } else {
+        alert('Invalid backup file format.');
+      }
+    } catch(err) {
+      alert('Error reading JSON file.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+window.renderHistory = renderHistory;
+window.renderAnalytics = renderAnalytics;
 
 renderSubView();
 </script>

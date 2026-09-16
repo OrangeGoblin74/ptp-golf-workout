@@ -17,6 +17,8 @@
     getFirestore, 
     collection, 
     addDoc, 
+    deleteDoc,
+    doc,
     onSnapshot, 
     query, 
     orderBy,
@@ -35,28 +37,25 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // Enable offline persistence
   enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-      console.warn('Persistence failed: Multiple tabs open');
-    } else if (err.code === 'unimplemented') {
-      console.warn('Browser does not support persistence');
-    }
+    if (err.code === 'failed-precondition') console.warn('Persistence failed: Multiple tabs open');
+    else if (err.code === 'unimplemented') console.warn('Browser does not support persistence');
   });
 
   window.db = db;
   window.dbCollection = collection(db, "workout_history");
   window.addDoc = addDoc;
+  window.deleteDoc = deleteDoc;
+  window.doc = doc;
   window.onSnapshot = onSnapshot;
   window.query = query;
   window.orderBy = orderBy;
 
-  // Real-time listener for multi-device sync
   const q = query(window.dbCollection, orderBy("timestamp", "asc"));
   onSnapshot(q, (snapshot) => {
     const cloudHistory = [];
-    snapshot.forEach((doc) => {
-      cloudHistory.push({ id: doc.id, ...doc.data() });
+    snapshot.forEach((d) => {
+      cloudHistory.push({ id: d.id, ...d.data() });
     });
     localStorage.setItem('ptp_workout_history', JSON.stringify(cloudHistory));
     if (window.currentParentTab === 'History') window.renderHistory();
@@ -101,7 +100,7 @@
   })();
 </script>
 
-<title>PTP Golf Workout Tracker V4</title>
+<title>PTP Golf Workout Tracker V4.1</title>
 <style>
   :root {
     --bg-color: #121212;
@@ -400,8 +399,22 @@
   .history-item {
     font-size: 11px;
     color: #ccc;
-    padding: 4px 0;
+    padding: 6px 0;
     border-bottom: 1px solid #2a2a2a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .delete-item-btn {
+    background: #c62828;
+    color: white;
+    border: none;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: bold;
+    cursor: pointer;
   }
 
   .timer-banner {
@@ -631,7 +644,6 @@ function switchSubTab(subTab) {
 
 function getHistory() {
   const history = JSON.parse(localStorage.getItem('ptp_workout_history') || '[]');
-  // Always sort history entries chronologically by workout date
   return history.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 }
 
@@ -742,7 +754,6 @@ function renderSubView() {
     let setsHtml = '';
     for (let setNum = 1; setNum <= 3; setNum++) {
       const history = getHistory();
-      // Look up last set logged for this exercise by workout date
       const lastEntry = [...history].reverse().find(h => h.exercise === ex.name && h.setNum == setNum);
       const pr = getMaxWeightPR(ex.name);
       
@@ -859,6 +870,30 @@ function saveLogToCloud(logEntry) {
   }
 }
 
+function deleteLogFromCloud(docId) {
+  if (!docId) return;
+  if (window.deleteDoc && window.doc && window.db) {
+    const docRef = window.doc(window.db, "workout_history", docId);
+    window.deleteDoc(docRef).catch(e => console.error("Error deleting document from cloud:", e));
+  }
+}
+
+function deleteHistoryItem(docId, timestamp) {
+  if (!confirm("Delete this set from history?")) return;
+
+  let history = getHistory();
+  if (docId) {
+    history = history.filter(h => h.id !== docId);
+    deleteLogFromCloud(docId);
+  } else {
+    history = history.filter(h => h.timestamp !== timestamp);
+  }
+
+  localStorage.setItem('ptp_workout_history', JSON.stringify(history));
+  renderHistory();
+  renderAnalytics();
+}
+
 function logSet(exName, exIdx, setNum, mult, isPlank) {
   const date = document.getElementById('session-date').value;
   const readiness = document.getElementById('session-readiness').value;
@@ -923,7 +958,6 @@ function renderHistory() {
     return;
   }
 
-  // Group entries by session key (Date - Day)
   const sessions = {};
   history.forEach(h => {
     const key = `${h.date} - ${h.day}`;
@@ -931,7 +965,6 @@ function renderHistory() {
     sessions[key].push(h);
   });
 
-  // Sort dates strictly newest to oldest for History display
   const sortedSessionKeys = Object.keys(sessions).sort((a, b) => {
     const dateA = a.split(' - ')[0];
     const dateB = b.split(' - ')[0];
@@ -950,8 +983,9 @@ function renderHistory() {
             <span>${sessionKey}</span>
             <span style="color:#ef5350;">${meta.duration} mins | ${meta.distance} km</span>
           </div>
-          <div style="font-size:11px; color:#ccc;">
-            ${meta.program} (Lvl ${meta.level}) | ${meta.kcal} kcal | ${meta.hr} BPM
+          <div style="font-size:11px; color:#ccc; display:flex; justify-content:space-between; align-items:center;">
+            <span>${meta.program} (Lvl ${meta.level}) | ${meta.kcal} kcal | ${meta.hr} BPM</span>
+            <button class="delete-item-btn" onclick="deleteHistoryItem('${meta.id || ''}', ${meta.timestamp || 0})">Delete</button>
           </div>
         </div>
       `;
@@ -974,7 +1008,8 @@ function renderHistory() {
         const bands = [s.b1, s.b2, s.b3, s.b4].filter(b => b && b !== 'None').join('+');
         html += `
           <div class="history-item">
-            <b>${s.exercise}</b> (Set ${s.setNum}): ${bands || 'BW'} @ ${s.reps} ${s.exercise === 'Plank Finisher' ? 'secs' : 'reps'} (${s.weight}kg)
+            <span><b>${s.exercise}</b> (Set ${s.setNum}): ${bands || 'BW'} @ ${s.reps} ${s.exercise === 'Plank Finisher' ? 'secs' : 'reps'} (${s.weight}kg)</span>
+            <button class="delete-item-btn" onclick="deleteHistoryItem('${s.id || ''}', ${s.timestamp || 0})">Delete</button>
           </div>
         `;
       });
@@ -999,7 +1034,6 @@ function renderAnalytics() {
     sessions[date] += (parseFloat(h.weight || 0) * parseInt(h.reps || 0));
   });
 
-  // Sort dates strictly oldest to newest for chart progression
   const dates = Object.keys(sessions).sort((a, b) => a.localeCompare(b)).slice(-7);
   const vols = dates.map(d => sessions[d]);
 
@@ -1151,6 +1185,7 @@ function importJSON(e) {
 
 window.renderHistory = renderHistory;
 window.renderAnalytics = renderAnalytics;
+window.deleteHistoryItem = deleteHistoryItem;
 
 renderSubView();
 </script>

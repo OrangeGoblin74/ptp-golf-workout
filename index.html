@@ -621,10 +621,17 @@ function renderSubView() {
 
   if (currentSubTab === 'Elliptical') {
     metaBox.style.display = 'none';
+
+    // Build Resistance Level options 1-16 matching Infiniti VG30
+    let levelOptions = '';
+    for (let lvl = 1; lvl <= 16; lvl++) {
+      levelOptions += `<option value="${lvl}" ${lvl === 4 ? 'selected' : ''}>Level ${lvl}</option>`;
+    }
+
     container.innerHTML = `
       <div class="exercise-card">
         <div class="ex-header">
-          <div class="ex-title">Elliptical Cardio Session</div>
+          <div class="ex-title">Infiniti VG30 Elliptical Session</div>
           <span class="ex-badge badge-cardio">Cardio</span>
         </div>
         <div class="session-meta" style="margin-top:10px; border:none; padding:0;">
@@ -650,24 +657,26 @@ function renderSubView() {
           </div>
           <div class="input-group">
             <label>Resistance Level (1-16)</label>
-            <input type="number" id="cardio-level" placeholder="e.g. 6">
+            <select id="cardio-level">
+              ${levelOptions}
+            </select>
           </div>
           <div class="input-group" style="grid-column: span 2;">
             <label>Pre-Programmed Workout</label>
             <select id="cardio-prog">
-              <option value="Manual / Custom">Manual / Custom</option>
-              <option value="Program 1 - Manual Base">Program 1 - Manual Base</option>
-              <option value="Program 2 - Rolling Hills">Program 2 - Rolling Hills</option>
-              <option value="Program 3 - Peak Burn">Program 3 - Peak Burn</option>
-              <option value="Program 4 - Interval Speed">Program 4 - Interval Speed</option>
-              <option value="Program 5 - Fat Loss Zone">Program 5 - Fat Loss Zone</option>
-              <option value="Program 6 - Ramp Climb">Program 6 - Ramp Climb</option>
-              <option value="Program 7 - Endurance Loop">Program 7 - Endurance Loop</option>
-              <option value="Program 8 - HR Target Base">Program 8 - HR Target Base</option>
-              <option value="Program 9 - Pyramids">Program 9 - Pyramids</option>
-              <option value="Program 10 - Golf Flush Recovery">Program 10 - Golf Flush Recovery</option>
-              <option value="Program 11 - Plateau HIIT">Program 11 - Plateau HIIT</option>
-              <option value="Program 12 - Custom User">Program 12 - Custom User</option>
+              <option value="0 - Custom / Manual">0 - Custom / Manual</option>
+              <option value="P1 - Rolling Blocks">P1 - Rolling Blocks</option>
+              <option value="P2 - Double Hill / Valley">P2 - Double Hill / Valley</option>
+              <option value="P3 - Triple Peak">P3 - Triple Peak</option>
+              <option value="P4 - Single Peak / Pyramid">P4 - Single Peak / Pyramid</option>
+              <option value="P5 - Steady Ramp">P5 - Steady Ramp</option>
+              <option value="P6 - Double Pyramid">P6 - Double Pyramid</option>
+              <option value="P7 - Plateau">P7 - Plateau</option>
+              <option value="P8 - High-Low Blocks">P8 - High-Low Blocks</option>
+              <option value="P9 - Step Mountain">P9 - Step Mountain</option>
+              <option value="P10 - Center Peak">P10 - Center Peak</option>
+              <option value="P11 - High Steady Block">P11 - High Steady Block</option>
+              <option value="P12 - High Intensity Intervals">P12 - High Intensity Intervals</option>
             </select>
           </div>
         </div>
@@ -773,7 +782,6 @@ function togglePlankTimer(exIdx, setNum) {
   const input = document.getElementById(`reps-${key}`);
 
   if (activePlankKey === key && plankTimer) {
-    // Stop & Record Timer
     clearInterval(plankTimer);
     plankTimer = null;
     activePlankKey = null;
@@ -781,13 +789,10 @@ function togglePlankTimer(exIdx, setNum) {
     btn.innerText = 'Start Plank Timer';
     input.value = plankSeconds;
     
-    // Auto-log set
     logSet('Plank Finisher', exIdx, setNum, 0.0, true);
   } else {
-    // Stop any existing plank timer first
     if (plankTimer) clearInterval(plankTimer);
 
-    // Start New Plank Timer
     plankSeconds = 0;
     activePlankKey = key;
     btn.classList.add('active-timer');

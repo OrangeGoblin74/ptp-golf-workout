@@ -53,13 +53,13 @@ const firebaseConfig = {
 
   // Immediate Auth Trigger & Alert
   console.log("Attempting Anonymous Auth...");
-  signInAnonymously(auth)
-    .then((cred) => {
-      alert("Auth Success! Device UID: " + cred.user.uid);
-    })
-    .catch((err) => {
-      alert("Auth Error: " + err.code + " - " + err.message);
-    });
+signInAnonymously(auth)
+  .then((cred) => {
+    console.log("Authenticated UID:", cred.user.uid);
+  })
+  .catch((err) => {
+    console.error("Auth Error:", err);
+  });
 
   onAuthStateChanged(auth, (user) => {
     if (user) {

@@ -125,7 +125,7 @@ signInAnonymously(auth)
   })();
 </script>
 
-<title>PTP Golf Workout Tracker V7.0</title>
+<title>PTP Golf Performance Tracker V8.0</title>
 <style>
   :root {
     --bg-color: #121212;
@@ -196,19 +196,24 @@ signInAnonymously(auth)
   #file-input { display: none; }
 
 .status-bar,.tools,.health{background:#181818;border:1px solid #333;border-radius:10px;padding:9px;margin-bottom:9px}.status-bar{display:flex;justify-content:space-between;font-size:11px}.pill{padding:4px 8px;border-radius:12px;font-weight:bold}.ok{background:#1b5e20}.busy{background:#f9a825;color:#111}.bad{background:#b71c1c}.tools{position:sticky;top:0;z-index:20}.toolgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.toolgrid button,.toggle button,.calhead button{background:#333;color:#fff;border:1px solid #555;border-radius:7px;padding:8px;font-weight:bold;font-size:10px}.toggle{display:flex;gap:6px;margin-top:8px}.toggle button{flex:1}.toggle .active{background:#1565c0}.remind{background:#4e342e;color:#ffcc80;padding:8px;border-radius:7px;margin-top:7px}.summary{cursor:pointer}.sumrow{display:flex;justify-content:space-between;align-items:center}.metrics{font-size:11px;color:#ccc;margin-top:4px}.details{display:none;border-top:1px solid #333;margin-top:8px;padding-top:6px}.details.open{display:block}.calhead{display:flex;justify-content:space-between;align-items:center}.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.calday{min-height:44px;background:#1c1c1c;border:1px solid #333;border-radius:6px;padding:4px;font-size:10px}.calday.hit{background:#18331b;border-color:#4caf50;cursor:pointer}.calday.blank{visibility:hidden}.tag{display:block;color:#81c784;font-weight:bold;margin-top:4px}
+
+  .home-grid,.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.metric{background:#1e1e1e;border:1px solid #333;border-radius:10px;padding:11px}.metric .value{font-size:20px;font-weight:800;color:#4caf50}.metric .label{font-size:10px;color:#aaa;text-transform:uppercase}.wide{grid-column:1/-1}.home-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.home-actions button,.analytics-tabs button,.exercise-select{background:#2a2a2a;color:white;border:1px solid #444;border-radius:8px;padding:10px;font-weight:700}.hero{background:linear-gradient(135deg,#1b5e20,#0d47a1);border-radius:14px;padding:16px;margin-bottom:10px}.score-ring{font-size:34px;font-weight:900}.analytics-tabs{display:flex;gap:5px;overflow-x:auto;margin-bottom:10px}.analytics-tabs button{white-space:nowrap;font-size:10px}.analytics-tabs button.active{background:#1565c0}.analytics-panel{display:none}.analytics-panel.active{display:block}.bar{height:9px;background:#333;border-radius:8px;overflow:hidden;margin:4px 0 10px}.bar span{display:block;height:100%;background:#4caf50}.pr-row,.insight-row{display:flex;justify-content:space-between;border-bottom:1px solid #333;padding:8px 0;font-size:11px}.heatmap{display:grid;grid-template-columns:repeat(14,1fr);gap:3px}.heat{aspect-ratio:1;border-radius:3px;background:#292929}.heat.d1{background:#2e7d32}.heat.d2{background:#ef6c00}.heat.d3{background:#c62828}.heat.elliptical{background:#1565c0}.calday.d1{background:#1b5e20;border-color:#4caf50}.calday.d2{background:#7a3b00;border-color:#ff9800}.calday.d3{background:#6e1717;border-color:#ef5350}.calday.elliptical{background:#0d3d66;border-color:#42a5f5}.smart-note{background:#263238;border-left:3px solid #ffb300;padding:6px 8px;border-radius:5px;font-size:10px;color:#ffe082;margin:5px 0}.band-name{font-size:9px}.chart-legend{font-size:10px;color:#aaa;margin:5px 0}.canvas-wrap canvas{height:220px}.section-title{font-size:14px;color:#4caf50;font-weight:800;margin-bottom:8px}
 </style>
 </head>
 <body>
 
-<h1>PTP Golf Workout Tracker V7.0</h1><div class="status-bar"><span id="sync" class="pill busy">● Connecting</span><span id="sync-time">Last sync: —</span></div>
+<h1>PTP Golf Performance Tracker V8.0</h1><div class="status-bar"><span id="sync" class="pill busy">● Connecting</span><span id="sync-time">Last sync: —</span></div>
 
 <div class="parent-tabs">
-  <button class="parent-btn active" id="parent-exercises" onclick="switchParentTab('Exercises')">Exercises</button>
+  <button class="parent-btn active" id="parent-home" onclick="switchParentTab('Home')">Home</button>
+  <button class="parent-btn" id="parent-exercises" onclick="switchParentTab('Exercises')">Workout</button>
   <button class="parent-btn" id="parent-history" onclick="switchParentTab('History')">History</button>
   <button class="parent-btn" id="parent-analytics" onclick="switchParentTab('Analytics')">Analytics</button>
 </div>
 
-<div id="view-exercises">
+<div id="view-home"><div id="home-container"></div></div>
+
+<div id="view-exercises" style="display:none;">
   <div class="sub-tabs">
     <button class="sub-btn active" id="sub-day1" onclick="switchSubTab('Day 1')">Day 1</button>
     <button class="sub-btn" id="sub-day2" onclick="switchSubTab('Day 2')">Day 2</button>
@@ -249,15 +254,18 @@ signInAnonymously(auth)
 
 <div id="view-history" style="display:none;"><div class="tools"><div class="toolgrid"><button onclick="exportCSV()">CSV</button><button onclick="exportJSON(false)">Backup JSON</button><button onclick="exportJSON(true)">Gold Master</button><button onclick="document.getElementById('file-input').click()">Restore</button><button onclick="verifyDB(true)">Verify DB</button><button onclick="toggleHealth()">Cloud Health</button></div><div id="reminder" class="remind" style="display:none"></div><div id="health" class="health" style="display:none"></div><div class="toggle"><button id="listbtn" class="active" onclick="setView('list')">List</button><button id="calbtn" onclick="setView('calendar')">Calendar</button></div></div><div id="history-container"></div><input type="file" id="file-input" accept=".json" onchange="importJSON(event)"></div>
 <div id="view-analytics" style="display:none;">
-  <div class="analytics-card">
-    <div class="ex-title" style="font-size:14px; color:var(--accent-light);">Total Session Volume Progress (kg)</div>
-    <canvas id="volumeChart"></canvas>
+  <div class="analytics-tabs">
+    <button id="an-overview" class="active" onclick="showAnalytics('overview')">Overview</button>
+    <button id="an-strength" onclick="showAnalytics('strength')">Strength</button>
+    <button id="an-prs" onclick="showAnalytics('prs')">PRs</button>
+    <button id="an-readiness" onclick="showAnalytics('readiness')">Readiness</button>
+    <button id="an-conditioning" onclick="showAnalytics('conditioning')">Conditioning</button>
   </div>
-
-  <div class="analytics-card">
-    <div class="ex-title" style="font-size:14px; color:#64b5f6;">Elliptical Cardio History</div>
-    <canvas id="cardioChart"></canvas>
-  </div>
+  <div id="analytics-overview" class="analytics-panel active"></div>
+  <div id="analytics-strength" class="analytics-panel"></div>
+  <div id="analytics-prs" class="analytics-panel"></div>
+  <div id="analytics-readiness" class="analytics-panel"></div>
+  <div id="analytics-conditioning" class="analytics-panel"></div>
 </div>
 
 <div class="timer-banner" id="timer-banner" style="display:none;">
@@ -269,7 +277,11 @@ signInAnonymously(auth)
 </div>
 
 <script>
-const BANDS = { "None": 0.0, "Pink": 2.2, "Lime": 5.5, "Green": 7.5, "Orange": 12.4, "Blue": 14.9, "Black": 22.4 };
+const BANDS = { "None":0.0, "Pink":2.2, "Yellow":5.5, "Green":7.5, "Orange":12.4, "Grey":14.9, "Black":22.4, "Lime":5.5, "Blue":14.9 };
+const BAND_OPTIONS = ["None","Pink","Yellow","Green","Orange","Grey","Black"];
+const BAND_LABELS = {"None":"None","Pink":"Pink (Ultra Light)","Yellow":"Yellow (Light)","Lime":"Yellow (Light)","Green":"Green (Medium)","Orange":"Orange (Heavy)","Grey":"Grey (Ultimate)","Blue":"Grey (Ultimate)","Black":"Black (Extreme)"};
+function canonicalBand(b){ return b==='Lime'?'Yellow':b==='Blue'?'Grey':(b||'None'); }
+function bandLabel(b){ return BAND_LABELS[b] || b || 'None'; }
 
 const EXERCISES = {
   "Day 1": [
@@ -312,7 +324,7 @@ const WARMUP_ROUTINE = [
   { name: "Standing Leg Swings", duration: "30s", desc: "Front-to-back and side-to-side swings for hip joint mobility." }
 ];
 
-window.currentParentTab = "Exercises";
+window.currentParentTab = "Home";
 let currentSubTab = "Day 1";
 let restTimer = null;
 let timerSeconds = 0;
@@ -332,19 +344,16 @@ function toggleHealth(){const e=document.getElementById('health');e.style.displa
 function backupReminder(){const e=document.getElementById('reminder'),v=localStorage.getItem('ptp_last_backup'),d=v?Math.floor((Date.now()-new Date(v))/86400000):999;if(d>=14){e.style.display='block';e.textContent=v?`⚠ Last backup was ${d} days ago.`:'⚠ No V7 backup recorded on this device.'}else e.style.display='none';}
 
 
-document.getElementById('session-date').value = new Date().toISOString().split('T')[0];
+document.getElementById('session-date').value = new Date().toISOString().split('T')[0]; document.getElementById('session-date').addEventListener('change',()=>renderSubView());
 
 function switchParentTab(tab) {
   window.currentParentTab = tab;
   document.querySelectorAll('.parent-btn').forEach(btn => btn.classList.remove('active'));
   document.getElementById(`parent-${tab.toLowerCase()}`).classList.add('active');
-
-  document.getElementById('view-exercises').style.display = tab === 'Exercises' ? 'block' : 'none';
-  document.getElementById('view-history').style.display = tab === 'History' ? 'block' : 'none';
-  document.getElementById('view-analytics').style.display = tab === 'Analytics' ? 'block' : 'none';
-
-  if (tab === 'History') renderHistory();
-  if (tab === 'Analytics') renderAnalytics();
+  ['home','exercises','history','analytics'].forEach(v => document.getElementById(`view-${v}`).style.display = tab.toLowerCase()===v ? 'block':'none');
+  if(tab==='Home') renderHome();
+  if(tab==='History') renderHistory();
+  if(tab==='Analytics') renderAnalytics();
 }
 
 function switchSubTab(subTab) {
@@ -368,6 +377,28 @@ function getMaxWeightPR(exName) {
   return Math.max(...entries.map(e => parseFloat(e.weight || 0)));
 }
 
+function previousExerciseSession(exName, beforeDate) {
+  const rows=getHistory().filter(h=>h.exercise===exName && h.type==='resistance' && (!beforeDate || h.date<beforeDate));
+  if(!rows.length) return [];
+  const latest=rows.map(x=>x.date).sort().at(-1);
+  return rows.filter(x=>x.date===latest).sort((a,b)=>Number(a.setNum)-Number(b.setNum));
+}
+function applySmartDefaults(exName, exIdx, isPlank) {
+  const date=document.getElementById('session-date').value;
+  const prev=previousExerciseSession(exName,date);
+  if(!prev.length) return;
+  const last=prev.find(x=>Number(x.setNum)===3)||prev.at(-1);
+  for(let n=1;n<=3;n++){
+    const old=prev.find(x=>Number(x.setNum)===n)||last;
+    const reps=document.getElementById(`reps-${exIdx}-${n}`); if(reps&&old?.reps) reps.value=old.reps;
+    if(!isPlank){ ['b1','b2','b3','b4'].forEach(k=>{const el=document.getElementById(`${k}-${exIdx}-${n}`);if(el)el.value=canonicalBand(last?.[k]);}); recalcRow(exIdx,n); }
+  }
+}
+function smartSuggestion(exName){
+ const prev=previousExerciseSession(exName,document.getElementById('session-date').value); if(!prev.length)return '';
+ const last=prev.find(x=>Number(x.setNum)===3)||prev.at(-1); const bands=['b1','b2','b3','b4'].map(k=>canonicalBand(last[k])).filter(x=>x!=='None').map(bandLabel).join(' + ')||'Bodyweight';
+ return `Smart start: last set from ${last.date} applied to all 3 sets (${bands}); previous reps retained.`;
+}
 function renderSubView() {
   const container = document.getElementById('exercise-container');
   const metaBox = document.getElementById('resistance-meta');
@@ -470,7 +501,7 @@ function renderSubView() {
       
       let lastText = lastEntry ? (ex.isPlank ? `Last: ${lastEntry.reps} secs` : `Last: ${[lastEntry.b1, lastEntry.b2, lastEntry.b3, lastEntry.b4].filter(b=>b&&b!=='None').join('+')||'BW'} @ ${lastEntry.reps} reps`) : 'First Session';
       let prTag = pr > 0 ? `<span class="pr-tag">PR: ${pr}kg</span>` : '';
-      let suggestTag = (lastEntry && parseInt(lastEntry.reps) >= 12 && !ex.isPlank) ? `<div class="suggest-tag">💡 Target hit last time: Try adding +Pink (2.2kg) or +1 rep</div>` : '';
+      let suggestTag = (!ex.isPlank && previousExerciseSession(ex.name, document.getElementById('session-date').value).length) ? `<div class="smart-note">${smartSuggestion(ex.name)}</div>` : '';
 
       if (ex.isPlank) {
         setsHtml += `
@@ -522,14 +553,13 @@ function renderSubView() {
     `;
 
     container.appendChild(card);
-    for (let setNum = 1; setNum <= 3; setNum++) {
-      if (!ex.isPlank) recalcRow(exIdx, setNum);
-    }
+    for (let setNum = 1; setNum <= 3; setNum++) { if (!ex.isPlank) recalcRow(exIdx, setNum); }
+    applySmartDefaults(ex.name, exIdx, !!ex.isPlank);
   });
 }
 
-function renderBandOptions() {
-  return Object.keys(BANDS).map(b => `<option value="${b}">${b}</option>`).join('');
+function renderBandOptions(selected='None') {
+  return BAND_OPTIONS.map(b => `<option value="${b}" ${canonicalBand(selected)===b?'selected':''}>${bandLabel(b)}</option>`).join('');
 }
 
 function recalcRow(exIdx, setNum) {
@@ -657,63 +687,26 @@ function logElliptical() {
 
 function setView(v){histView=v;document.getElementById('listbtn').classList.toggle('active',v==='list');document.getElementById('calbtn').classList.toggle('active',v==='calendar');renderHistory();}
 function toggleSession(id){document.getElementById(id).classList.toggle('open');}
-function card(k,v,id){const m=v[0],vol=v.reduce((a,x)=>a+(parseFloat(x.weight||0)*parseInt(x.reps||0)),0);const rows=v.map(x=>{const b=[x.b1,x.b2,x.b3,x.b4].filter(q=>q&&q!=='None').join('+');return `<div class="history-item"><span><b>${x.exercise}</b> · Set ${x.setNum}: ${b||'BW'} @ ${x.reps} ${x.exercise==='Plank Finisher'?'secs':'reps'} (${x.weight}kg)</span><button class="delete-item-btn" onclick="event.stopPropagation();deleteHistoryItem('${x.id||''}',${x.timestamp||0})">Delete</button></div>`}).join('');return `<div class="history-card"><div class="summary" onclick="toggleSession('${id}')"><div class="sumrow"><div><b style="color:#4caf50">${k}</b><div class="metrics">${m.kcal||'—'} kcal · ${m.hr||'—'} BPM · ${vol.toFixed(0)} kg total volume</div></div><b>⌄</b></div></div><div id="${id}" class="details">${rows}</div></div>`;}
-function calendar(si){const ds=Object.keys(si).map(k=>k.split(' - ')[0]).sort();if(ds.length&&!calCursor.fixed){calCursor=new Date(ds.at(-1)+'T12:00:00');calCursor.fixed=true}const y=calCursor.getFullYear(),m=calCursor.getMonth(),f=new Date(y,m,1),last=new Date(y,m+1,0),off=(f.getDay()+6)%7;let z=`<div class="calhead"><button onclick="calCursor=new Date(${y},${m-1},1);calCursor.fixed=true;renderHistory()">‹</button><b>${f.toLocaleString(undefined,{month:'long',year:'numeric'})}</b><button onclick="calCursor=new Date(${y},${m+1},1);calCursor.fixed=true;renderHistory()">›</button></div><div class="calendar">`;['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(x=>z+=`<div>${x}</div>`);for(let i=0;i<off;i++)z+='<div class="calday blank"></div>';for(let d=1;d<=last.getDate();d++){const q=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`,k=Object.keys(si).find(x=>x.startsWith(q+' - '));z+=k?`<div class="calday hit" onclick="setView('list')">${d}<span class="tag">${si[k][0].day.replace('Day ','D')}</span></div>`:`<div class="calday">${d}</div>`}return z+'</div>';}
+function card(k,v,id){const m=v[0],vol=v.reduce((a,x)=>a+(parseFloat(x.weight||0)*parseInt(x.reps||0)),0);const rows=v.map(x=>{const b=[x.b1,x.b2,x.b3,x.b4].filter(q=>q&&q!=='None').map(bandLabel).join(' + ');return `<div class="history-item"><span><b>${x.exercise}</b> · Set ${x.setNum}: ${b||'BW'} @ ${x.reps} ${x.exercise==='Plank Finisher'?'secs':'reps'} (${x.weight}kg)</span><button class="delete-item-btn" onclick="event.stopPropagation();deleteHistoryItem('${x.id||''}',${x.timestamp||0})">Delete</button></div>`}).join('');return `<div class="history-card"><div class="summary" onclick="toggleSession('${id}')"><div class="sumrow"><div><b style="color:#4caf50">${k}</b><div class="metrics">${m.kcal||'—'} kcal · ${m.hr||'—'} BPM · ${vol.toFixed(0)} kg total volume</div></div><b>⌄</b></div></div><div id="${id}" class="details">${rows}</div></div>`;}
+function openCalendarSession(k){ histView='list'; document.getElementById('listbtn').classList.add('active'); document.getElementById('calbtn').classList.remove('active'); renderHistory(); setTimeout(()=>{const id='s'+k.replace(/\W/g,''); const d=document.getElementById(id); if(d){d.classList.add('open');d.closest('.history-card').scrollIntoView({behavior:'smooth',block:'start'});}},30);}
+function dayClass(day){return day==='Day 1'?'d1':day==='Day 2'?'d2':day==='Day 3'?'d3':'elliptical';}
+function calendar(si){const ds=Object.keys(si).map(k=>k.split(' - ')[0]).sort();if(ds.length&&!calCursor.fixed){calCursor=new Date(ds.at(-1)+'T12:00:00');calCursor.fixed=true}const y=calCursor.getFullYear(),m=calCursor.getMonth(),f=new Date(y,m,1),last=new Date(y,m+1,0),off=(f.getDay()+6)%7;let z=`<div class="calhead"><button onclick="calCursor=new Date(${y},${m-1},1);calCursor.fixed=true;renderHistory()">‹</button><b>${f.toLocaleString(undefined,{month:'long',year:'numeric'})}</b><button onclick="calCursor=new Date(${y},${m+1},1);calCursor.fixed=true;renderHistory()">›</button></div><div class="chart-legend">🟢 Day 1 &nbsp; 🟠 Day 2 &nbsp; 🔴 Day 3 &nbsp; 🔵 Elliptical</div><div class="calendar">`;['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(x=>z+=`<div>${x}</div>`);for(let i=0;i<off;i++)z+='<div class="calday blank"></div>';for(let d=1;d<=last.getDate();d++){const q=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`,k=Object.keys(si).find(x=>x.startsWith(q+' - '));z+=k?`<div class="calday hit ${dayClass(si[k][0].day)}" onclick="openCalendarSession('${k}')">${d}<span class="tag">${si[k][0].day==='Elliptical'?'EL':si[k][0].day.replace('Day ','D')}</span></div>`:`<div class="calday">${d}</div>`}return z+='</div>';}
+
 function renderHistory(){const h=getHistory(),c=document.getElementById('history-container');backupReminder();if(!h.length){c.innerHTML='No workout history.';return}const si=sessions(h);if(histView==='calendar'){c.innerHTML=calendar(si);return}c.innerHTML=Object.keys(si).sort((a,b)=>b.localeCompare(a)).map(k=>card(k,si[k],'s'+k.replace(/\W/g,''))).join('');}
 
-function renderAnalytics() {
-  const history = getHistory();
-  const volCanvas = document.getElementById('volumeChart');
-  const vctx = volCanvas.getContext('2d');
-  vctx.clearRect(0, 0, volCanvas.width, volCanvas.height);
-  
-  const sessions = {};
-  history.filter(h => h.type !== 'elliptical').forEach(h => {
-    const date = h.date;
-    if (!sessions[date]) sessions[date] = 0;
-    sessions[date] += (parseFloat(h.weight || 0) * parseInt(h.reps || 0));
-  });
-
-  const dates = Object.keys(sessions).sort((a, b) => a.localeCompare(b)).slice(-7);
-  const vols = dates.map(d => sessions[d]);
-
-  if (vols.length > 0) {
-    const maxV = Math.max(...vols, 100);
-    vctx.strokeStyle = '#4caf50';
-    vctx.lineWidth = 3;
-    vctx.beginPath();
-    dates.forEach((d, i) => {
-      const x = (i / Math.max(dates.length - 1, 1)) * (volCanvas.width - 40) + 20;
-      const y = volCanvas.height - 30 - (vols[i] / maxV) * (volCanvas.height - 50);
-      if (i === 0) vctx.moveTo(x, y);
-      else vctx.lineTo(x, y);
-      vctx.fillStyle = '#ffffff';
-      vctx.fillRect(x - 3, y - 3, 6, 6);
-    });
-    vctx.stroke();
-  }
-
-  const cardioCanvas = document.getElementById('cardioChart');
-  const cctx = cardioCanvas.getContext('2d');
-  cctx.clearRect(0, 0, cardioCanvas.width, cardioCanvas.height);
-
-  const cardioEntries = history.filter(h => h.type === 'elliptical').sort((a, b) => (a.date || '').localeCompare(b.date || '')).slice(-7);
-  if (cardioEntries.length > 0) {
-    const maxTime = Math.max(...cardioEntries.map(c => parseFloat(c.duration || 0)), 30);
-    cctx.strokeStyle = '#64b5f6';
-    cctx.lineWidth = 3;
-    cctx.beginPath();
-    cardioEntries.forEach((c, i) => {
-      const x = (i / Math.max(cardioEntries.length - 1, 1)) * (cardioCanvas.width - 40) + 20;
-      const y = cardioCanvas.height - 30 - (parseFloat(c.duration) / maxTime) * (cardioCanvas.height - 50);
-      if (i === 0) cctx.moveTo(x, y);
-      else cctx.lineTo(x, y);
-      cctx.fillStyle = '#ffffff';
-      cctx.fillRect(x - 3, y - 3, 6, 6);
-    });
-    cctx.stroke();
-  }
-}
+function workoutSessions(){const out={};getHistory().filter(x=>x.type!=='elliptical').forEach(x=>(out[`${x.date}|${x.day}`]||=[]).push(x));return Object.values(out);}
+function sessionVolume(rows){return rows.filter(x=>x.exercise!=='Plank Finisher').reduce((a,x)=>a+Number(x.weight||0)*Number(x.reps||0),0);}
+function maxLoad(rows){return Math.max(0,...rows.filter(x=>x.exercise!=='Plank Finisher').map(x=>Number(x.weight||0)));}
+function showAnalytics(name){document.querySelectorAll('.analytics-panel').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.analytics-tabs button').forEach(x=>x.classList.remove('active'));document.getElementById('analytics-'+name).classList.add('active');document.getElementById('an-'+name).classList.add('active');renderAnalytics();}
+function calcReadinessIndex(ss){if(!ss.length)return 0;const now=new Date(Math.max(...ss.map(r=>new Date(r[0].date+'T12:00:00')))),recent=ss.filter(r=>(now-new Date(r[0].date+'T12:00:00'))/86400000<=30),days=new Set(recent.map(r=>r[0].date)).size;const consistency=Math.min(100,days/12*100);const complete=recent.filter(r=>r.filter(x=>x.exercise!=='Plank Finisher').length===21).length/Math.max(1,recent.length)*100;const ready=recent.reduce((a,r)=>a+Number(r[0].readiness||0),0)/Math.max(1,recent.length)/5*100;return Math.round(consistency*.4+complete*.35+ready*.25);}
+function drawLine(canvas,labels,vals,color='#4caf50'){if(!canvas||!vals.length)return;const dpr=devicePixelRatio||1,w=canvas.clientWidth||320,h=220;canvas.width=w*dpr;canvas.height=h*dpr;const c=canvas.getContext('2d');c.scale(dpr,dpr);c.clearRect(0,0,w,h);const max=Math.max(...vals,1),min=Math.min(...vals,0),span=max-min||1,pad=25;c.strokeStyle='#333';c.beginPath();c.moveTo(pad,10);c.lineTo(pad,h-pad);c.lineTo(w-8,h-pad);c.stroke();c.strokeStyle=color;c.lineWidth=3;c.beginPath();vals.forEach((v,i)=>{const x=pad+i*(w-pad-12)/Math.max(1,vals.length-1),y=h-pad-(v-min)/span*(h-pad-20);i?c.lineTo(x,y):c.moveTo(x,y);c.fillStyle='#fff';c.fillRect(x-2,y-2,4,4)});c.stroke();c.fillStyle='#aaa';c.font='9px sans-serif';labels.forEach((l,i)=>{if(i%Math.ceil(labels.length/5||1)===0)c.fillText(l.slice(5),pad+i*(w-pad-12)/Math.max(1,labels.length-1)-8,h-7)});}
+function renderHome(){const h=getHistory(),ss=workoutSessions(),last=ss.sort((a,b)=>b[0].date.localeCompare(a[0].date))[0],latest=last?.[0],lastDate=latest?.date||'—',month=lastDate.slice(0,7),ms=ss.filter(r=>r[0].date.startsWith(month)),kcal=ms.reduce((a,r)=>a+Number(r[0].kcal||0),0),hr=ms.length?Math.round(ms.reduce((a,r)=>a+Number(r[0].hr||0),0)/ms.length):0,score=calcReadinessIndex(ss);document.getElementById('home-container').innerHTML=`<div class="hero"><div style="font-size:12px">GOLF READINESS INDEX</div><div class="score-ring">${score}/100</div><div style="font-size:11px">Consistency · Completion · Self-rated readiness</div></div><div class="home-grid"><div class="metric"><div class="value">${ms.length}</div><div class="label">Sessions this month</div></div><div class="metric"><div class="value">${kcal.toLocaleString()}</div><div class="label">Active kcal this month</div></div><div class="metric"><div class="value">${hr||'—'}</div><div class="label">Average HR</div></div><div class="metric"><div class="value">${lastDate}</div><div class="label">Last workout ${latest?.day||''}</div></div><div class="metric wide"><div class="label">Database</div><div class="value" style="font-size:15px">${h.length} records · ${ss.length} sessions · ${audit(h).dupIds?'Needs review':'Healthy'}</div></div></div><div class="home-actions" style="margin-top:10px"><button onclick="switchParentTab('Exercises')">Start Workout</button><button onclick="switchParentTab('History')">History</button><button onclick="switchParentTab('Analytics')">Golf Analytics</button><button onclick="exportJSON(false)">Backup Now</button></div>`;}
+function renderAnalytics(){const h=getHistory(),ss=workoutSessions().sort((a,b)=>a[0].date.localeCompare(b[0].date)),res=h.filter(x=>x.type==='resistance'&&x.exercise!=='Plank Finisher'),score=calcReadinessIndex(ss);const last30=ss.slice(-12),totVol=last30.reduce((a,r)=>a+sessionVolume(r),0),avgHR=last30.length?Math.round(last30.reduce((a,r)=>a+Number(r[0].hr||0),0)/last30.length):0;
+ document.getElementById('analytics-overview').innerHTML=`<div class="home-grid"><div class="metric"><div class="value">${score}</div><div class="label">Golf readiness /100</div></div><div class="metric"><div class="value">${ss.length}</div><div class="label">Total sessions</div></div><div class="metric"><div class="value">${Math.round(totVol).toLocaleString()}</div><div class="label">Recent volume kg</div></div><div class="metric"><div class="value">${avgHR||'—'}</div><div class="label">Recent avg HR</div></div></div><div class="analytics-card"><div class="section-title">Program compliance</div>${['Day 1','Day 2','Day 3'].map(d=>{const n=ss.filter(r=>r[0].day===d).length,m=Math.max(...['Day 1','Day 2','Day 3'].map(x=>ss.filter(r=>r[0].day===x).length),1);return `<div>${d}: ${n} sessions</div><div class="bar"><span style="width:${n/m*100}%"></span></div>`}).join('')}</div><div class="analytics-card"><div class="section-title">Training consistency</div><div class="heatmap">${Array.from({length:56},(_,i)=>{const end=new Date((ss.at(-1)?.[0].date||new Date().toISOString().slice(0,10))+'T12:00:00'),d=new Date(end);d.setDate(d.getDate()-(55-i));const q=d.toISOString().slice(0,10),r=ss.find(x=>x[0].date===q);return `<div class="heat ${r?dayClass(r[0].day):''}" title="${q}${r?' '+r[0].day:''}"></div>`}).join('')}</div></div>`;
+ const exs=[...new Set(res.map(x=>x.exercise))].sort(),sel=document.getElementById('strength-exercise')?.value||exs[0]||'',rows=res.filter(x=>x.exercise===sel),dates=[...new Set(rows.map(x=>x.date))].sort(),vals=dates.map(d=>Math.max(...rows.filter(x=>x.date===d).map(x=>Number(x.weight||0))));document.getElementById('analytics-strength').innerHTML=`<div class="analytics-card"><div class="section-title">Exercise strength progression</div><select id="strength-exercise" class="exercise-select" onchange="renderAnalytics()">${exs.map(x=>`<option ${x===sel?'selected':''}>${x}</option>`).join('')}</select><div class="chart-legend">Maximum logged set load by session</div><canvas id="strengthChart"></canvas></div>`;setTimeout(()=>drawLine(document.getElementById('strengthChart'),dates,vals),0);
+ const prs=exs.map(ex=>{const rr=res.filter(x=>x.exercise===ex),mx=Math.max(...rr.map(x=>Number(x.weight||0))),first=Math.max(...rr.filter(x=>x.date===rr.map(y=>y.date).sort()[0]).map(x=>Number(x.weight||0)));return {ex,mx,gain:mx-first}}).sort((a,b)=>b.mx-a.mx);document.getElementById('analytics-prs').innerHTML=`<div class="analytics-card"><div class="section-title">Personal records</div>${prs.map(x=>`<div class="pr-row"><span>🏆 ${x.ex}</span><b>${x.mx.toFixed(1)} kg <small style="color:#81c784">${x.gain>=0?'+':''}${x.gain.toFixed(1)}</small></b></div>`).join('')}</div>`;
+ const groups={};ss.forEach(r=>{const q=Number(r[0].readiness||0);(groups[q]||=[]).push(sessionVolume(r))});document.getElementById('analytics-readiness').innerHTML=`<div class="analytics-card"><div class="section-title">Readiness vs performance</div>${Object.keys(groups).sort().map(q=>`<div class="insight-row"><span>Readiness ${q}/5 (${groups[q].length} sessions)</span><b>${Math.round(groups[q].reduce((a,b)=>a+b,0)/groups[q].length).toLocaleString()} kg avg volume</b></div>`).join('')}<p style="font-size:10px;color:#aaa">Early results are directional; this becomes more useful as more sessions accumulate.</p></div>`;
+ const labels=ss.map(r=>r[0].date),hrs=ss.map(r=>Number(r[0].hr||0)),kcals=ss.map(r=>Number(r[0].kcal||0));document.getElementById('analytics-conditioning').innerHTML=`<div class="analytics-card"><div class="section-title">Average heart rate trend</div><canvas id="hrChart"></canvas></div><div class="analytics-card"><div class="section-title">Active calorie trend</div><canvas id="kcalChart"></canvas></div>`;setTimeout(()=>{drawLine(document.getElementById('hrChart'),labels,hrs,'#ef5350');drawLine(document.getElementById('kcalChart'),labels,kcals,'#42a5f5')},0);}
 
 function playBeep() {
   try {
@@ -797,7 +790,7 @@ window.renderHistory = renderHistory;
 window.renderAnalytics = renderAnalytics;
 window.deleteHistoryItem = deleteHistoryItem;
 
-const ls=localStorage.getItem('ptp_last_sync');if(ls)document.getElementById('sync-time').textContent='Last sync: '+new Date(ls).toLocaleString();backupReminder();renderSubView();
+const ls=localStorage.getItem('ptp_last_sync');if(ls)document.getElementById('sync-time').textContent='Last sync: '+new Date(ls).toLocaleString();backupReminder();renderSubView();renderHome();
 </script>
 </body>
 </html>

@@ -15,9 +15,11 @@
   import { 
     getFirestore, 
     collection, 
-    addDoc, 
     deleteDoc,
     doc,
+    setDoc,
+    getDocs,
+    writeBatch,
     onSnapshot, 
     query, 
     orderBy,
@@ -44,7 +46,9 @@ const firebaseConfig = {
 
   window.db = db;
   window.dbCollection = collection(db, "workout_history");
-  window.addDoc = addDoc;
+  window.setDoc = setDoc;
+  window.getDocs = getDocs;
+  window.writeBatch = writeBatch;
   window.deleteDoc = deleteDoc;
   window.doc = doc;
   window.onSnapshot = onSnapshot;
@@ -73,13 +77,11 @@ signInAnonymously(auth)
     onSnapshot(q, (snapshot) => {
       const cloudHistory = [];
       snapshot.forEach((d) => {
-        cloudHistory.push({ id: d.id, ...d.data() });
+        cloudHistory.push({ ...d.data(), id: d.id });
       });
-      if (cloudHistory.length > 0) {
-        localStorage.setItem('ptp_workout_history', JSON.stringify(cloudHistory));
-        if (window.currentParentTab === 'History' && window.renderHistory) window.renderHistory();
-        if (window.currentParentTab === 'Analytics' && window.renderAnalytics) window.renderAnalytics();
-      }
+      localStorage.setItem('ptp_workout_history', JSON.stringify(cloudHistory));
+      if (window.currentParentTab === 'History' && window.renderHistory) window.renderHistory();
+      if (window.currentParentTab === 'Analytics' && window.renderAnalytics) window.renderAnalytics();
     }, (error) => {
       console.warn("Firestore access blocked or restricted:", error);
     });
@@ -123,7 +125,7 @@ signInAnonymously(auth)
   })();
 </script>
 
-<title>PTP Golf Workout Tracker V5.2</title>
+<title>PTP Golf Workout Tracker V5.3</title>
 <style>
   :root {
     --bg-color: #121212;
@@ -196,7 +198,7 @@ signInAnonymously(auth)
 </head>
 <body>
 
-<h1>PTP Golf Workout Tracker V5.2</h1>
+<h1>PTP Golf Workout Tracker V5.3</h1>
 
 <div class="parent-tabs">
   <button class="parent-btn active" id="parent-exercises" onclick="switchParentTab('Exercises')">Exercises</button>
@@ -562,11 +564,23 @@ function togglePlankTimer(exIdx, setNum) {
   }
 }
 
-function saveLogToCloud(logEntry) {
-  logEntry.timestamp = Date.now();
-  if (window.addDoc && window.dbCollection) {
-    window.addDoc(window.dbCollection, logEntry).catch(e => console.warn('Cloud sync queued offline:', e));
+function createFirestoreId() {
+  if (!window.doc || !window.dbCollection) {
+    throw new Error('Firestore is not ready. Please wait a moment and try again.');
   }
+  return window.doc(window.dbCollection).id;
+}
+
+function saveLogToCloud(logEntry) {
+  if (!logEntry.id) logEntry.id = createFirestoreId();
+  if (!logEntry.timestamp) logEntry.timestamp = Date.now();
+
+  const cloudEntry = { ...logEntry };
+  delete cloudEntry.id;
+
+  const docRef = window.doc(window.db, "workout_history", logEntry.id);
+  return window.setDoc(docRef, cloudEntry)
+    .catch(e => console.warn('Cloud sync queued offline:', e));
 }
 
 function deleteLogFromCloud(docId) {
@@ -611,7 +625,7 @@ function logSet(exName, exIdx, setNum, mult, isPlank) {
 
   const currentMax = getMaxWeightPR(exName);
   const isPR = parseFloat(weight) > currentMax && !isPlank;
-  const logEntry = { type: 'resistance', date, day: currentSubTab, readiness, exercise: exName, setNum, b1, b2, b3, b4, reps, weight, kcal, hr };
+  const logEntry = { id: createFirestoreId(), timestamp: Date.now(), type: 'resistance', date, day: currentSubTab, readiness, exercise: exName, setNum, b1, b2, b3, b4, reps, weight, kcal, hr };
 
   const history = getHistory();
   history.push(logEntry);
@@ -635,7 +649,7 @@ function logElliptical() {
 
   if (!duration) return alert("Please enter workout duration!");
 
-  const logEntry = { type: 'elliptical', date, day: 'Elliptical', exercise: 'Elliptical Trainer', duration, distance, kcal, hr, level, program };
+  const logEntry = { id: createFirestoreId(), timestamp: Date.now(), type: 'elliptical', date, day: 'Elliptical', exercise: 'Elliptical Trainer', duration, distance, kcal, hr, level, program };
   const history = getHistory();
   history.push(logEntry);
   localStorage.setItem('ptp_workout_history', JSON.stringify(history));
@@ -839,41 +853,62 @@ function exportJSON() {
   a.click();
 }
 
+async function replaceFirestoreHistory(importedData) {
+  const seenIds = new Set();
+  const prepared = importedData.map((raw, index) => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      throw new Error(`Record ${index + 1} is not a valid workout object.`);
+    }
+    const item = { ...raw };
+    if (!item.id) item.id = createFirestoreId();
+    if (seenIds.has(item.id)) throw new Error(`Duplicate ID found in import: ${item.id}`);
+    seenIds.add(item.id);
+    if (!item.timestamp) item.timestamp = Date.now();
+    return item;
+  });
+
+  const existing = await window.getDocs(window.dbCollection);
+  const operations = [];
+  existing.forEach(snapshot => operations.push({ type: 'delete', ref: snapshot.ref }));
+  prepared.forEach(item => {
+    const cloudEntry = { ...item };
+    delete cloudEntry.id;
+    operations.push({ type: 'set', ref: window.doc(window.db, 'workout_history', item.id), data: cloudEntry });
+  });
+
+  for (let i = 0; i < operations.length; i += 450) {
+    const batch = window.writeBatch(window.db);
+    operations.slice(i, i + 450).forEach(op => {
+      if (op.type === 'delete') batch.delete(op.ref);
+      else batch.set(op.ref, op.data);
+    });
+    await batch.commit();
+  }
+  localStorage.setItem('ptp_workout_history', JSON.stringify(prepared));
+  return prepared.length;
+}
+
 function importJSON(event) {
   const file = event.target.files[0];
   if (!file) return;
-  
+  const warning = 'REPLACE CLOUD HISTORY?\n\nThis will permanently delete all existing workout_history records in Firestore and replace them with the selected backup.\n\nOnly continue if you have made a backup and intend a full replacement.';
+  if (!confirm(warning)) { event.target.value = ''; return; }
+
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = async function(e) {
     try {
       const importedData = JSON.parse(e.target.result);
-      if (Array.isArray(importedData)) {
-        // 1. Save locally for immediate UI update
-        localStorage.setItem('ptp_workout_history', JSON.stringify(importedData));
-        
-        // 2. Push every record up to Firebase Firestore so all devices sync
-        if (window.addDoc && window.dbCollection) {
-          importedData.forEach(item => {
-            // Clean out local IDs if Firebase should generate its own doc IDs
-            const cloudEntry = { ...item };
-            delete cloudEntry.id; 
-            
-            window.addDoc(window.dbCollection, cloudEntry).catch(err => {
-              console.warn("Cloud sync queue error:", err);
-            });
-          });
-        }
-        
-        alert("Workouts successfully restored and synced to the cloud!");
-        if (window.currentParentTab === 'History' && window.renderHistory) window.renderHistory();
-        if (window.currentParentTab === 'Analytics' && window.renderAnalytics) window.renderAnalytics();
-        renderSubView();
-      } else {
-        alert("Invalid backup file format. Expected an array of workouts.");
-      }
+      if (!Array.isArray(importedData)) throw new Error('Invalid backup format. Expected an array of workouts.');
+      if (importedData.length === 0) throw new Error('The selected backup contains no workout records.');
+      const count = await replaceFirestoreHistory(importedData);
+      alert(`Restore complete. Firestore now contains ${count} workout records.`);
+      if (window.currentParentTab === 'History') renderHistory();
+      if (window.currentParentTab === 'Analytics') renderAnalytics();
+      renderSubView();
     } catch (err) {
-      alert("Error parsing JSON file: " + err.message);
-    }
+      console.error('Restore failed:', err);
+      alert('Restore failed: ' + err.message);
+    } finally { event.target.value = ''; }
   };
   reader.readAsText(file);
 }

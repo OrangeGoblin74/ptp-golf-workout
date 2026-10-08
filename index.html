@@ -839,23 +839,40 @@ function exportJSON() {
   a.click();
 }
 
-function importJSON(e) {
-  const file = e.target.files[0];
+function importJSON(event) {
+  const file = event.target.files[0];
   if (!file) return;
+  
   const reader = new FileReader();
-  reader.onload = function(evt) {
+  reader.onload = function(e) {
     try {
-      const data = JSON.parse(evt.target.result);
-      if (Array.isArray(data)) {
-        localStorage.setItem('ptp_workout_history', JSON.stringify(data));
-        data.forEach(item => saveLogToCloud(item));
-        alert('History restored & synced!');
-        if (window.currentParentTab === 'History') renderHistory();
+      const importedData = JSON.parse(e.target.result);
+      if (Array.isArray(importedData)) {
+        // 1. Save locally for immediate UI update
+        localStorage.setItem('ptp_workout_history', JSON.stringify(importedData));
+        
+        // 2. Push every record up to Firebase Firestore so all devices sync
+        if (window.addDoc && window.dbCollection) {
+          importedData.forEach(item => {
+            // Clean out local IDs if Firebase should generate its own doc IDs
+            const cloudEntry = { ...item };
+            delete cloudEntry.id; 
+            
+            window.addDoc(window.dbCollection, cloudEntry).catch(err => {
+              console.warn("Cloud sync queue error:", err);
+            });
+          });
+        }
+        
+        alert("Workouts successfully restored and synced to the cloud!");
+        if (window.currentParentTab === 'History' && window.renderHistory) window.renderHistory();
+        if (window.currentParentTab === 'Analytics' && window.renderAnalytics) window.renderAnalytics();
+        renderSubView();
       } else {
-        alert('Invalid backup file.');
+        alert("Invalid backup file format. Expected an array of workouts.");
       }
-    } catch(err) {
-      alert('Error reading JSON file.');
+    } catch (err) {
+      alert("Error parsing JSON file: " + err.message);
     }
   };
   reader.readAsText(file);

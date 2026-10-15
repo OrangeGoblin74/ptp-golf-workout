@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="PTP Golf Workout">
+<meta name="apple-mobile-web-app-title" content="Golf Performance System">
 
 <link id="dynamic-apple-touch-icon" rel="apple-touch-icon" href="">
 
@@ -125,7 +125,7 @@ signInAnonymously(auth)
   })();
 </script>
 
-<title>PTP Golf Performance Tracker V9.7.2</title>
+<title>Golf Performance System V10</title>
 <style>
   :root {
     --bg-color: #121212;
@@ -209,15 +209,17 @@ signInAnonymously(auth)
 
 .ex-title.library-link,.exercise-name.library-link{cursor:pointer;text-decoration:underline;text-decoration-color:#4caf50;text-underline-offset:4px}.band-colour{font-weight:800;transition:.15s}.band-None{background:#222!important;color:#fff!important}.band-Pink{background:#f48fb1!important;color:#111!important}.band-Yellow,.band-Lime{background:#fdd835!important;color:#111!important}.band-Green{background:#43a047!important;color:#fff!important}.band-Orange{background:#fb8c00!important;color:#111!important}.band-Grey,.band-Blue{background:#8d8d8d!important;color:#fff!important}.band-Black{background:#050505!important;color:#fff!important;border-color:#777!important}.history-table{width:100%;border-collapse:collapse;font-size:10px}.history-table th,.history-table td{padding:7px 4px;border-bottom:1px solid #3b3b3b;text-align:left}.history-table th{color:#81c784}.add-extra-workout{width:100%;margin-top:12px;padding:14px;border:2px dashed #4caf50;background:#162819;color:#a5d6a7;border-radius:12px;font-weight:900}.extra-picker{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1100;padding:14px;overflow:auto}.extra-picker.open{display:block}.extra-picker-sheet{max-width:560px;margin:auto;background:#171717;padding:14px;border-radius:14px}.extra-picker-list{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}.extra-picker-item{background:#252525;color:#fff;border:1px solid #444;border-radius:8px;padding:9px;text-align:left;font-size:10px}.extra-confirm{background:#1b5e20;color:#fff;border:0;border-radius:8px;padding:10px;width:100%;margin-top:8px}
 .microband-log{background:#1d1d1d;border:1px solid #ef9a3d;border-radius:12px;padding:10px;margin-top:10px}.microband-set{display:grid;grid-template-columns:34px 1fr 70px 52px;gap:6px;align-items:center;margin:7px 0}.microband-set select,.microband-set input{width:100%;box-sizing:border-box;background:#222;color:white;border:1px solid #555;border-radius:6px;padding:7px}.microband-set button{background:#ef6c00;color:white;border:0;border-radius:6px;padding:8px 4px;font-weight:800}.mb-Light{background:#fdd835!important;color:#111!important}.mb-Medium{background:#fb8c00!important;color:#111!important}.mb-Heavy{background:#e65100!important;color:#fff!important}.microband-note{font-size:9px;color:#ffcc80;margin:5px 0}.exercise-hero{max-height:410px!important;object-fit:contain!important} .exercise-hero{cursor:zoom-in}.image-zoom{display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.97);padding:0;overflow:hidden}.image-zoom.open{display:flex;flex-direction:column}.zoom-tip{flex:0 0 auto;background:#111;color:#ddd;padding:9px 7px;text-align:center;font-size:11px}.zoom-viewport{position:relative;flex:1;overflow:hidden;touch-action:none;overscroll-behavior:none;user-select:none;-webkit-user-select:none}.zoom-viewport img{position:absolute;left:50%;top:50%;max-width:94vw;max-height:calc(100vh - 112px);width:auto;height:auto;background:#fff;border-radius:8px;transform-origin:center center;will-change:transform;user-select:none;-webkit-user-drag:none}.zoom-controls{flex:0 0 auto;display:flex;justify-content:center;gap:7px;background:#111;padding:8px calc(8px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left))}.zoom-controls button{background:#333;border:1px solid #666;color:white;padding:10px 15px;border-radius:7px;font-weight:800;min-width:55px} </style>
+  <link rel="stylesheet" href="css/v10.css">
 </head>
 <body>
 
-<h1>PTP Golf Performance Tracker V9.7.2</h1><div class="status-bar"><span id="sync" class="pill busy">● Connecting</span><span id="sync-time">Last sync: —</span></div>
+<h1>Golf Performance System V10</h1><div class="status-bar"><span id="sync" class="pill busy">● Connecting</span><span id="sync-time">Last sync: —</span></div>
 
 <div class="parent-tabs">
   <button class="parent-btn active" id="parent-home" onclick="switchParentTab('Home')">Home</button>
   <button class="parent-btn" id="parent-exercises" onclick="switchParentTab('Exercises')">Workout</button>
   <button class="parent-btn" id="parent-library" onclick="switchParentTab('Library')">Library</button>
+  <button class="parent-btn" id="parent-programs" onclick="switchParentTab('Programs')">Programs</button>
   <button class="parent-btn" id="parent-history" onclick="switchParentTab('History')">History</button>
   <button class="parent-btn" id="parent-analytics" onclick="switchParentTab('Analytics')">Analytics</button>
 </div>
@@ -278,19 +280,28 @@ signInAnonymously(auth)
   </div>
 </div>
 
+<div id="view-programs" style="display:none;"><div id="programs-container"></div></div>
 <div id="view-history" style="display:none;"><div class="tools"><div class="toolgrid"><button onclick="exportCSV()">CSV</button><button onclick="exportJSON(false)">Backup JSON</button><button onclick="exportJSON(true)">Gold Master</button><button onclick="document.getElementById('file-input').click()">Restore</button><button onclick="verifyDB(true)">Verify DB</button><button onclick="toggleHealth()">Cloud Health</button></div><div id="reminder" class="remind" style="display:none"></div><div id="health" class="health" style="display:none"></div><div class="toggle"><button id="listbtn" class="active" onclick="setView('list')">List</button><button id="calbtn" onclick="setView('calendar')">Calendar</button></div></div><div id="history-container"></div><input type="file" id="file-input" accept=".json" onchange="importJSON(event)"></div>
 <div id="view-analytics" style="display:none;">
   <div class="analytics-tabs">
     <button id="an-overview" class="active" onclick="showAnalytics('overview')">Overview</button>
-    <button id="an-strength" onclick="showAnalytics('strength')">Strength</button>
+    <button id="an-performance" onclick="showAnalytics('performance')">Golf Performance</button>
+    <button id="an-exercises" onclick="showAnalytics('exercises')">Exercises</button>
+    <button id="an-body" onclick="showAnalytics('body')">Body Areas</button>
+    <button id="an-load" onclick="showAnalytics('load')">Training Load</button>
     <button id="an-prs" onclick="showAnalytics('prs')">PRs</button>
-    <button id="an-readiness" onclick="showAnalytics('readiness')">Readiness</button>
-    <button id="an-conditioning" onclick="showAnalytics('conditioning')">Conditioning</button>
-    <button id="an-pro" onclick="showAnalytics('pro')">Pro Insights</button>
+    <button id="an-recovery" onclick="showAnalytics('recovery')">Recovery</button>
+    <button id="an-coach" onclick="showAnalytics('coach')">Coach</button>
   </div>
   <div id="analytics-overview" class="analytics-panel active"></div>
-  <div id="analytics-strength" class="analytics-panel"></div>
+  <div id="analytics-performance" class="analytics-panel"></div>
+  <div id="analytics-exercises" class="analytics-panel"></div>
+  <div id="analytics-body" class="analytics-panel"></div>
+  <div id="analytics-load" class="analytics-panel"></div>
   <div id="analytics-prs" class="analytics-panel"></div>
+  <div id="analytics-recovery" class="analytics-panel"></div>
+  <div id="analytics-coach" class="analytics-panel"></div>
+  <div id="analytics-strength" class="analytics-panel"></div>
   <div id="analytics-readiness" class="analytics-panel"></div>
   <div id="analytics-conditioning" class="analytics-panel"></div>
   <div id="analytics-pro" class="analytics-panel"></div>
@@ -420,9 +431,10 @@ function switchParentTab(tab) {
   window.currentParentTab = tab;
   document.querySelectorAll('.parent-btn').forEach(btn => btn.classList.remove('active'));
   document.getElementById(`parent-${tab.toLowerCase()}`).classList.add('active');
-  ['home','exercises','library','history','analytics'].forEach(v => document.getElementById(`view-${v}`).style.display = tab.toLowerCase()===v ? 'block':'none');
+  ['home','exercises','library','programs','history','analytics'].forEach(v => document.getElementById(`view-${v}`).style.display = tab.toLowerCase()===v ? 'block':'none');
   if(tab==='Home') renderHome();
   if(tab==='Library') renderLibrary();
+  if(tab==='Programs' && window.renderPrograms) window.renderPrograms();
   if(tab==='History') renderHistory();
   if(tab==='Analytics') renderAnalytics();
 }
@@ -867,11 +879,11 @@ function exportCSV() {
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.setAttribute('href', url);
-  a.setAttribute('download', `PTP_Workout_History_${new Date().toISOString().split('T')[0]}.csv`);
+  a.setAttribute('download', `Golf_Performance_System_History_${new Date().toISOString().split('T')[0]}.csv`);
   a.click();
 }
 
-function exportJSON(gold=false){const h=getHistory(),r=audit(h);if(!h.length)return alert('No history.');if(!confirm(`${gold?'GOLD MASTER':'BACKUP'}\n\nRecords: ${r.records}\nSessions: ${r.sessions}\nUnique IDs: ${r.unique}\nDuplicate IDs: ${r.dupIds}\nDuplicate records: ${r.dups}\n\nCreate file?`))return;const b=new Blob([JSON.stringify(h,null,2)],{type:'application/json'}),u=URL.createObjectURL(b),a=document.createElement('a'),d=new Date().toISOString().split('T')[0];a.href=u;a.download=gold?`PTP_Workout_Gold_Master_${d}.json`:`PTP_Workout_Backup_${d}.json`;a.click();URL.revokeObjectURL(u);localStorage.setItem('ptp_last_backup',new Date().toISOString());backupReminder();}
+function exportJSON(gold=false){const h=getHistory(),r=audit(h);if(!h.length)return alert('No history.');if(!confirm(`${gold?'GOLD MASTER':'BACKUP'}\n\nRecords: ${r.records}\nSessions: ${r.sessions}\nUnique IDs: ${r.unique}\nDuplicate IDs: ${r.dupIds}\nDuplicate records: ${r.dups}\n\nCreate file?`))return;const b=new Blob([JSON.stringify(h,null,2)],{type:'application/json'}),u=URL.createObjectURL(b),a=document.createElement('a'),d=new Date().toISOString().split('T')[0];a.href=u;a.download=gold?`Golf_Performance_System_Gold_Master_${d}.json`:`Golf_Performance_System_Backup_${d}.json`;a.click();URL.revokeObjectURL(u);localStorage.setItem('ptp_last_backup',new Date().toISOString());backupReminder();}
 
 async function replaceFirestoreHistory(importedData) {
   const seenIds = new Set();
@@ -894,5 +906,7 @@ window.deleteHistoryItem = deleteHistoryItem;
 
 const ls=localStorage.getItem('ptp_last_sync');if(ls)document.getElementById('sync-time').textContent='Last sync: '+new Date(ls).toLocaleString();backupReminder();renderSubView();renderHome();
 </script>
+  <script src="data/v10-data.js"></script>
+  <script src="js/v10.js"></script>
 </body>
 </html>
